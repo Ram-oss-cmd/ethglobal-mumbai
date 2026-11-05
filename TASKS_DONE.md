@@ -4,3 +4,4 @@
 - [x] Added four ghost behaviors and Ethereum power pellets. Fourteen tests pass, including real collisions, vault exclusion, recovery after eating a ghost, and deterministic replay.
 - [x] Shipped the Phaser practice arena, original sprites, HUD, and restart. Edge smoke passed for keyboard and touch banking, ghost eating, staggered returns, both loss endings, and replay.
 - [x] Slowed movement, kept ghosts active through wallet respawns, and staggered route drops by 0.9–1.2 seconds. All 15 engine tests passed, including occupied tiles and score conservation.
+- [x] Reworked the practice arena into a focused arcade cabinet with rounded blue maze walls, classic arcade colors, clean HUD, and solid-to-outline wallet lives. Full test, lint, production build, and browser banking/death smoke checks passed.

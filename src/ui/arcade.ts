@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import {
-  createGame, GHOST_HOME, MAZE, RUN_MS, stepGame, TICK_MS, VAULT,
+  createGame, MAZE, RUN_MS, stepGame, TICK_MS, VAULT,
   type Direction, type GameState,
 } from '../game'
 import wallet from './assets/wallet.svg'
@@ -15,7 +15,7 @@ const sprites = { wallet, tracer, snare, relay, warden, frightened, returning }
 const TILE = 28
 const WIDTH = MAZE[0].length * TILE
 const HEIGHT = MAZE.length * TILE
-const BACKGROUND = 0x0b111c
+const BACKGROUND = 0x000000
 const PRACTICE_SEED = 0x57525553
 export const BOARD_ASPECT = WIDTH / HEIGHT
 
@@ -33,52 +33,63 @@ export type Hud = {
   lives: number
   seconds: number
   powerSeconds: number
-  notice: string
 }
 
-function drawMaze(g: Phaser.GameObjects.Graphics) {
-  MAZE.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) {
+/** Rounds the wall contours at grid intersections without changing collisions. */
+function drawMaze(scene: Phaser.Scene) {
+  const texture = scene.textures.createCanvas('walls', WIDTH, HEIGHT)!
+  const ctx = texture.context
+  const columns = MAZE[0].length
+  const radius = 8
+  const ports = [[0, -radius], [radius, 0], [0, radius], [-radius, 0]]
+  // Extend each side's last tile so the open tunnel keeps its open ends.
+  const wall = (x: number, y: number) => (MAZE[y]?.[Math.max(0, Math.min(x, columns - 1))] ?? '#') === '#'
+
+  ctx.beginPath()
+  for (let y = 0; y <= MAZE.length; y++) {
+    for (let x = 0; x <= columns; x++) {
       const left = x * TILE
       const top = y * TILE
-      if (row[x] === '#') {
-        g.fillStyle((x + y) % 2 ? 0x1b2942 : 0x1a273d).fillRect(left, top, TILE, TILE)
-        g.fillStyle(0x28374f).fillRect(left + 5, top + 5, TILE - 10, 1)
-        g.fillStyle(0x3b5276)
-        if (x === 0 || row[x - 1] !== '#') g.fillRect(left, top, 2, TILE)
-        if (y === 0 || MAZE[y - 1][x] !== '#') g.fillRect(left, top, TILE, 2)
-        g.fillStyle(0x476289)
-        if (x === row.length - 1 || row[x + 1] !== '#') g.fillRect(left + TILE - 2, top, 2, TILE)
-        if (y === MAZE.length - 1 || MAZE[y + 1][x] !== '#') g.fillRect(left, top + TILE - 2, TILE, 2)
-      } else if (row[x] === 'V') {
-        g.fillStyle(0x123831).fillRect(left, top, TILE, TILE)
-        g.fillStyle(0x235b4c).fillRect(left + 2, top + 5, TILE - 4, TILE - 7)
-      } else {
-        g.fillStyle(0x142033).fillRect(left + TILE / 2 - 1, top + TILE / 2 - 1, 2, 2)
-        if (x === 0 || x === row.length - 1) {
-          const edge = x === 0 ? left : left + TILE - 3
-          g.fillStyle(0x50708d).fillRect(edge, top + 3, 3, 4).fillRect(edge, top + TILE - 7, 3, 4)
-        }
+      const cells = [wall(x - 1, y - 1), wall(x, y - 1), wall(x, y), wall(x - 1, y)]
+      const edges = cells.map((cell, i) => cell !== cells[(i + 1) % 4])
+      if (edges[1] && x < columns) {
+        ctx.moveTo(left + radius, top)
+        ctx.lineTo(left + TILE - radius, top)
+      }
+      if (edges[2] && y < MAZE.length) {
+        ctx.moveTo(left, top + radius)
+        ctx.lineTo(left, top + TILE - radius)
+      }
+      const joins = ports.filter((_, i) => edges[i])
+      const connect = ([ax, ay]: number[], [bx, by]: number[]) => {
+        ctx.moveTo(left + ax, top + ay)
+        ctx.quadraticCurveTo(left, top, left + bx, top + by)
+      }
+      if (joins.length === 2) connect(joins[0], joins[1])
+      if (joins.length === 4) {
+        cells.forEach((cell, i) => { if (cell) connect(ports[(i + 3) % 4], ports[i]) })
       }
     }
-  })
+  }
+  ctx.lineCap = 'round'
+  ctx.lineWidth = 6
+  ctx.strokeStyle = '#131d83'
+  ctx.stroke()
+  ctx.lineWidth = 2.5
+  ctx.strokeStyle = '#5362ff'
+  ctx.stroke()
+  scene.add.image(0, 0, texture).setOrigin(0)
 
+  const g = scene.add.graphics()
   const vaultX = VAULT.x * TILE
   const threshold = VAULT.y * TILE
-  g.fillStyle(0xa9ff98).fillRect(vaultX, threshold - 1, TILE, 3)
-  g.fillStyle(0x4cc696)
-    .fillRect(vaultX, threshold + 2, 2, TILE - 3)
-    .fillRect(vaultX + TILE - 2, threshold + 2, 2, TILE - 3)
-  g.fillStyle(0x98f5b3)
+  g.fillStyle(0xafff65).fillRect(vaultX + 1, threshold - 1, TILE - 2, 3)
+  g.fillStyle(0xafff65)
     .fillRect(vaultX + 9, threshold + 13, 10, 8)
     .fillRect(vaultX + 12, threshold + 9, 4, 2)
     .fillRect(vaultX + 10, threshold + 11, 2, 2)
     .fillRect(vaultX + 16, threshold + 11, 2, 2)
-  g.fillStyle(0x123831).fillRect(vaultX + 13, threshold + 15, 2, 4)
-
-  const homeX = GHOST_HOME.x * TILE
-  const homeY = GHOST_HOME.y * TILE
-  g.lineStyle(1, 0x435779).strokeRect(homeX + 3, homeY + 3, TILE - 6, TILE - 6)
+  g.fillStyle(BACKGROUND).fillRect(vaultX + 13, threshold + 15, 2, 4)
 }
 
 function drawPickups(g: Phaser.GameObjects.Graphics, state: GameState) {
@@ -86,16 +97,15 @@ function drawPickups(g: Phaser.GameObjects.Graphics, state: GameState) {
   for (const dot of state.dots) {
     const x = (dot.x + 0.5) * TILE
     const y = (dot.y + 0.5) * TILE
-    g.fillStyle(0x8e612c).fillRect(x - 3, y - 3, 6, 6)
-    g.fillStyle(0xffd478).fillRect(x - 2, y - 2, 4, 4)
+    g.fillStyle(0xffba9d).fillCircle(x, y, 2.6)
   }
   for (const pellet of state.pellets) {
     const x = (pellet.x + 0.5) * TILE
     const y = (pellet.y + 0.5) * TILE
-    g.fillStyle(0xe0d1ff).fillTriangle(x, y - 9, x - 6, y + 1, x, y + 4)
-    g.fillStyle(0x9f7bff).fillTriangle(x, y - 9, x + 6, y + 1, x, y + 4)
-    g.fillStyle(0xbda7ff).fillTriangle(x - 6, y + 3, x, y + 6, x, y + 9)
-    g.fillStyle(0x7959d4).fillTriangle(x + 6, y + 3, x, y + 6, x, y + 9)
+    g.fillStyle(0xffe5cf).fillTriangle(x, y - 9, x - 6, y + 1, x, y + 4)
+    g.fillStyle(0xeea078).fillTriangle(x, y - 9, x + 6, y + 1, x, y + 4)
+    g.fillStyle(0xffd2b5).fillTriangle(x - 6, y + 3, x, y + 6, x, y + 9)
+    g.fillStyle(0xc77255).fillTriangle(x + 6, y + 3, x, y + 6, x, y + 9)
   }
 }
 
@@ -119,7 +129,6 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
   let state = createGame(PRACTICE_SEED)
   let startedAt: number | undefined
   let input: Direction | undefined
-  let notice = 'Enter the maze when you are ready.'
   let previous: Hud | undefined
   let draw: (() => void) | undefined
 
@@ -130,13 +139,11 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
       banked: state.banked,
       lives: state.lives,
       seconds: Math.ceil((RUN_MS - state.elapsedMs) / 1000),
-      powerSeconds: Math.max(0, Math.ceil((state.frightenedUntilMs - state.elapsedMs) / 1000)),
-      notice,
+      powerSeconds: state.status === 'playing' ? Math.max(0, Math.ceil((state.frightenedUntilMs - state.elapsedMs) / 1000)) : 0,
     }
     if (!previous || previous.status !== hud.status || previous.carried !== hud.carried ||
         previous.banked !== hud.banked || previous.lives !== hud.lives ||
-        previous.seconds !== hud.seconds || previous.powerSeconds !== hud.powerSeconds ||
-        previous.notice !== hud.notice) {
+        previous.seconds !== hud.seconds || previous.powerSeconds !== hud.powerSeconds) {
       previous = hud
       onHud(hud)
     }
@@ -162,24 +169,25 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
       },
       create(this: Phaser.Scene) {
         this.game.canvas.setAttribute('aria-hidden', 'true')
-        drawMaze(this.add.graphics())
+        drawMaze(this)
         const pickups = this.add.graphics()
         const ghosts = state.ghosts.map((ghost) => actor(this, ghost.id))
         const player = actor(this, 'wallet')
 
         draw = () => {
           drawPickups(pickups, state)
+          const visible = state.status === 'playing'
           state.ghosts.forEach((ghost, i) => {
             const remainingPower = state.frightenedUntilMs - state.elapsedMs
             const flashing = !reducedEffects && remainingPower <= 1400 && Math.floor(remainingPower / 160) % 2 === 0
             let texture: keyof typeof sprites = ghost.id
             if (ghost.mode === 'returning' || ghost.mode === 'recovering') texture = 'returning'
             if (ghost.mode === 'frightened' && !flashing) texture = 'frightened'
-            ghosts[i](ghost, texture)
+            ghosts[i](ghost, texture, Number(visible))
           })
           const protectedPlayer = state.invulnerableUntilMs > state.elapsedMs
           const dimPlayer = protectedPlayer && (reducedEffects || Math.floor(state.elapsedMs / 150) % 2 === 1)
-          player(state.player, 'wallet', dimPlayer ? 0.6 : 1)
+          player(state.player, 'wallet', visible ? (dimPlayer ? 0.6 : 1) : 0)
         }
 
         this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
@@ -190,35 +198,30 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
           if (!event.repeat) steer(direction)
         })
         draw()
+        syncHud()
       },
       update() {
         if (startedAt === undefined || (state.status !== 'playing' && state.queuedDots.length === 0)) return
         const target = performance.now() - startedAt
         if (state.elapsedMs + state.terminalRespawnMs + TICK_MS > target) return
 
-        const lives = state.lives
-        const banked = state.banked
         // Pending dots still animate after the scoreboard freezes.
         while (state.elapsedMs + state.terminalRespawnMs + TICK_MS <= target &&
                (state.status === 'playing' || state.queuedDots.length > 0)) {
           stepGame(state, input)
           input = undefined
         }
-        if (state.lives < lives) notice = 'Life lost. Carried coins return to your route.'
-        if (state.banked > banked) notice = `+${state.banked - banked} secured at the vault.`
         draw?.()
         syncHud()
       },
     },
   })
 
-  syncHud()
   return {
     start() {
       state = createGame(PRACTICE_SEED)
       input = undefined
       startedAt = performance.now()
-      notice = 'Run live. Collect coins and bring them to the vault.'
       draw?.()
       syncHud()
     },
