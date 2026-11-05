@@ -2,3 +2,4 @@
 - [x] Built the original maze and fixed-tick movement. Five tests cover maze reachability, the vault opening, buffered turns, wall stops, reversals, tunnels, and timeout.
 - [x] Implemented threshold banking, life loss, and seeded route-only dot respawns. Ten tests pass, including exact delays, unique dot conservation, bank protection, and full clear.
 - [x] Added four ghost behaviors and Ethereum power pellets. Fourteen tests pass, including real collisions, vault exclusion, recovery after eating a ghost, and deterministic replay.
+- [x] Shipped the Phaser practice arena, original sprites, HUD, and restart. Edge smoke passed for keyboard and touch banking, ghost eating, staggered returns, both loss endings, and replay.
