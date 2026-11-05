@@ -1,3 +1,4 @@
 - [x] Bootstrapped React, Vite, strict TypeScript, lint, and the dependency lockfile. `npm run lint`, `npm run build`, and `npm audit` passed.
 - [x] Built the original maze and fixed-tick movement. Five tests cover maze reachability, the vault opening, buffered turns, wall stops, reversals, tunnels, and timeout.
 - [x] Implemented threshold banking, life loss, and seeded route-only dot respawns. Ten tests pass, including exact delays, unique dot conservation, bank protection, and full clear.
+- [x] Added four ghost behaviors and Ethereum power pellets. Fourteen tests pass, including real collisions, vault exclusion, recovery after eating a ghost, and deterministic replay.
