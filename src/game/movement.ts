@@ -30,6 +30,10 @@ export function moveActor(
   budget: number,
   choose: (tile: number) => Direction | null,
   allowVault = false,
+  hooks?: {
+    onCross?: (from: number, to: number) => boolean | void
+    onArrival?: (tile: number) => void
+  },
 ) {
   while (budget > 0) {
     if (actor.destination === null) {
@@ -41,7 +45,8 @@ export function moveActor(
       actor.destination = destination
     }
 
-    const advance = Math.min(budget, TILE_UNITS - actor.progress)
+    const boundary = actor.progress < HALF_TILE ? HALF_TILE : TILE_UNITS
+    const advance = Math.min(budget, boundary - actor.progress)
     budget -= advance
     actor.progress += advance
     const { x, y } = point(actor.tile)
@@ -51,10 +56,13 @@ export function moveActor(
     if (actor.x < -0.5) actor.x += WIDTH
     if (actor.x >= WIDTH - 0.5) actor.x -= WIDTH
 
+    if (actor.progress === HALF_TILE && hooks?.onCross?.(actor.tile, actor.destination) === false) return
+
     if (actor.progress === TILE_UNITS) {
       actor.tile = actor.destination
       actor.destination = null
       actor.progress = 0
+      hooks?.onArrival?.(actor.tile)
     }
   }
 }
