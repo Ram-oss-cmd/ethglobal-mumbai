@@ -25,10 +25,10 @@ interface GhostContext {
 }
 
 const roster = {
-  tracer: { corner: { x: WIDTH - 2, y: 1 }, speed: 70, releaseMs: 0 },
-  snare: { corner: { x: 1, y: 1 }, speed: 65, releaseMs: 450 },
-  relay: { corner: { x: WIDTH - 2, y: MAZE.length - 3 }, speed: 64, releaseMs: 900 },
-  warden: { corner: { x: 1, y: MAZE.length - 3 }, speed: 61, releaseMs: 1_350 },
+  tracer: { corner: { x: WIDTH - 2, y: 1 }, speed: 56, releaseMs: 0 },
+  snare: { corner: { x: 1, y: 1 }, speed: 52, releaseMs: 450 },
+  relay: { corner: { x: WIDTH - 2, y: MAZE.length - 3 }, speed: 51, releaseMs: 900 },
+  warden: { corner: { x: 1, y: MAZE.length - 3 }, speed: 49, releaseMs: 1_350 },
 } satisfies Record<GhostId, { corner: Point; speed: number; releaseMs: number }>
 
 const cells = MAZE.join('')
@@ -57,12 +57,12 @@ const routes = new Map(corridors.map(target => {
   return [target, distances]
 }))
 
-export function createGhosts(spawnAtMs: number): Ghost[] {
+export function createGhosts(): Ghost[] {
   return (Object.keys(roster) as GhostId[]).map(id => ({
     ...createActor(HOME_TILE),
     id,
     mode: 'recovering',
-    readyAtMs: spawnAtMs + roster[id].releaseMs,
+    readyAtMs: roster[id].releaseMs,
   }))
 }
 
@@ -149,7 +149,7 @@ export function moveGhosts(state: GhostContext, tickMs: number) {
       ghost.mode = wave
     }
 
-    const speed = ghost.mode === 'returning' ? 115 : ghost.mode === 'frightened' ? 46 : roster[ghost.id].speed
+    const speed = ghost.mode === 'returning' ? 92 : ghost.mode === 'frightened' ? 37 : roster[ghost.id].speed
     moveActor(ghost, speed, tile => {
       if (ghost.mode === 'returning' && tile === HOME_TILE) recover(ghost, state)
       if (ghost.mode === 'recovering') return null

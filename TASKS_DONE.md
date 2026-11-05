@@ -3,3 +3,4 @@
 - [x] Implemented threshold banking, life loss, and seeded route-only dot respawns. Ten tests pass, including exact delays, unique dot conservation, bank protection, and full clear.
 - [x] Added four ghost behaviors and Ethereum power pellets. Fourteen tests pass, including real collisions, vault exclusion, recovery after eating a ghost, and deterministic replay.
 - [x] Shipped the Phaser practice arena, original sprites, HUD, and restart. Edge smoke passed for keyboard and touch banking, ghost eating, staggered returns, both loss endings, and replay.
+- [x] Slowed movement, kept ghosts active through wallet respawns, and staggered route drops by 0.9–1.2 seconds. All 15 engine tests passed, including occupied tiles and score conservation.

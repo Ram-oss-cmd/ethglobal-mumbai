@@ -4,8 +4,8 @@ import { randomIndex } from './random'
 export type Dot = ReturnType<typeof point> & { id: number }
 type QueuedDot = Dot & { atMs: number }
 
-export const RESPAWN_MIN_MS = 600
-export const RESPAWN_MAX_MS = 900
+export const RESPAWN_MIN_MS = 900
+export const RESPAWN_MAX_MS = 1_200
 
 export interface CoinState {
   carried: number
@@ -61,8 +61,7 @@ export function bankDots(state: CoinState) {
 export function scheduleLostDots(state: CoinState, elapsedMs: number, tickMs: number) {
   if (state.carriedDots.length === 0) return
 
-  // Every carried dot vacated a unique eligible route tile. Actors stay at spawn
-  // during the delays, so those tiles and any other free candidates remain available.
+  // Every carried dot vacated a unique eligible route tile, so there is room to reserve all of them.
   const reserved = new Set([
     VAULT_TILE, START_TILE, HOME_TILE, ...START_PELLETS,
     ...state.retiredTiles, ...state.dots.map(tileOf), ...state.queuedDots.map(tileOf),
@@ -88,10 +87,10 @@ export function scheduleLostDots(state: CoinState, elapsedMs: number, tickMs: nu
   state.carried = 0
 }
 
-export function releaseDots(state: CoinState, elapsedMs: number) {
-  if (state.queuedDots.length === 0) return
+export function releaseDots(state: CoinState, elapsedMs: number, occupied: readonly number[] = []) {
   state.queuedDots = state.queuedDots.filter(({ atMs, ...dot }) => {
-    if (atMs > elapsedMs) return true
+    // A moving actor can briefly occupy a reserved tile when its dot is due.
+    if (atMs > elapsedMs || occupied.includes(tileOf(dot))) return true
     state.dots.push(dot)
     return false
   })

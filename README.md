@@ -24,7 +24,7 @@ npm run preview   # Serve the production build after npm run build
 - Click **Start practice**. Steer with the arrow keys, WASD, or the on-screen pad on touch devices. Tap before a turn to buffer it.
 - Move **down** from spawn for a quick first deposit. Crossing the green line at the bottom transfers all carried points. Ghosts stay outside the vault, and the clock keeps running inside.
 - For a quick power-up, restart, move **down**, and tap **left** as soon as you pick up the first dot. The turn queues at the bottom corridor and takes you to an Ethereum diamond in the corner. Catch frightened ghosts before power expires.
-- A hit costs one life and drops your carried points. Those dots reappear along your traversed route after staggered delays. Banked points stay secured for the run. The run ends when time expires, all lives are lost, or all 190 dots are banked.
+- A hit costs one life and drops your carried points. Your wallet returns to spawn while the ghosts keep moving. Dots return to random spots on your route after staggered 0.9–1.2 second delays. An occupied spot waits until clear. Banked points stay secured for the run.
 
 ## Checks
 
