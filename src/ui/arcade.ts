@@ -213,6 +213,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
   let receivedAt = 0
   let lastBanked = 0
   let bankFlashUntil = 0
+  let sadUntilMs = 0
   let draw: ((now: number) => void) | undefined
   let playerFacing: Facing = 'left'
   const ghostFacing = new Map<keyof typeof ghostColors, Facing>()
@@ -259,7 +260,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           .setVisible(false)
         const ghosts = Object.values(ghostColors).map(color => actor(this, `${color}_left`, WIDTH, TILE_HEIGHT))
         const player = actor(this, 'normal_left', WIDTH, TILE_HEIGHT, playerSize)
-        const sadPortrait = this.add.image(0, 0, 'sad').setDisplaySize(playerSize * 2, playerSize * 2).setVisible(false)
+        const sadPortrait = actor(this, 'sad', WIDTH, TILE_HEIGHT, playerSize)
 
         draw = (now) => {
           if (!state) return
@@ -272,14 +273,14 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           const duration = previous ? state.elapsedMs - previous.elapsedMs : 0
           const ratio = duration > 0 ? Math.min(1, (now - receivedAt) / Math.min(duration, 80)) : 1
           const { elapsedMs, frightenedUntilMs, eatenGhostId, ghostPauseUntilMs, status } = state
-          const showingSad = Boolean(eatenGhostId && elapsedMs < ghostPauseUntilMs && status === 'playing')
+          const catchPaused = Boolean(eatenGhostId && elapsedMs < ghostPauseUntilMs && status === 'playing')
           state.ghosts.forEach((ghost, i) => {
             if (ghost.direction === 'left' || ghost.direction === 'right') ghostFacing.set(ghost.id, ghost.direction)
             const facing = ghostFacing.get(ghost.id) ?? 'left'
             const isReturning = ghost.mode === 'returning'
             const color = elapsedMs < frightenedUntilMs ? 'blue' : ghostColors[ghost.id]
             const texture = isReturning ? 'returning' : `${color}_${facing}`
-            const eaten = showingSad && ghost.id === eatenGhostId
+            const eaten = catchPaused && ghost.id === eatenGhostId
             const position = interpolateActor(previous?.ghosts[i], ghost, ratio, columns, isReturning ? 1.01 : .65)
             ghosts[i](position, texture, Number(spritesVisible && !eaten))
           })
@@ -292,13 +293,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           const protectedPlayer = state.invulnerableUntilMs > elapsedMs
           const dimPlayer = protectedPlayer && (reducedEffects || Math.floor(elapsedMs / 150) % 2 === 1)
           player(pos, `${isEaten ? 'hit' : 'normal'}_${playerFacing}`, spritesVisible ? (dimPlayer ? 0.6 : 1) : 0)
-          sadPortrait.setVisible(spritesVisible && showingSad)
-          if (sadPortrait.visible) {
-            const half = playerSize
-            const x = Phaser.Math.Clamp((pos.x + .5) * TILE_WIDTH, half, WIDTH - half)
-            const y = Math.max(half, (pos.y + .5) * TILE_HEIGHT - playerSize - half - 4)
-            sadPortrait.setPosition(x, y)
-          }
+          sadPortrait(pos, 'sad', Number(spritesVisible && status === 'playing' && !isEaten && elapsedMs < sadUntilMs))
 
           if (!reducedEffects && isEaten && spritesVisible) {
             const x = Phaser.Math.Clamp((pos.x + 0.5) * TILE_WIDTH, starRadius, WIDTH - starRadius)
@@ -324,7 +319,11 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
 
   return {
     present(next: RunView, smooth = false, visible = true) {
-      if (!next.elapsedMs || (state && next.elapsedMs < state.elapsedMs)) ghostFacing.clear()
+      if (!next.elapsedMs || (state && next.elapsedMs < state.elapsedMs)) {
+        ghostFacing.clear()
+        sadUntilMs = 0
+      }
+      if (next.eatenGhostId && next.elapsedMs < next.ghostPauseUntilMs) sadUntilMs = next.ghostPauseUntilMs + 100
       if (next.elapsedMs === 0 || (state?.respawnAtMs && next.respawnAtMs === 0 && next.status === 'playing')) {
         playerFacing = 'left'
       }

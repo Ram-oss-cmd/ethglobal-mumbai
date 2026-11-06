@@ -54,3 +54,4 @@
 - [x] Added directional ghost portraits, blue power-up portraits, and the sad portrait during the eaten-ghost pause. Edge verified the rendered transitions and transparent backgrounds. All 60 tests, lint, and build passed.
 - [x] Moved the sad portrait above the dog and restored the two-dot return sprite. Edge verified the visual sequence, and simulation tests confirmed the faster trip home and archived return speed. All 60 tests, lint, and build passed.
 - [x] Enlarged the ghost portraits by about 10% and matched the sad portrait to the dog's sprite dimensions. Edge verified both sizes and the compact returning dots. All 60 tests, lint, and build passed.
+- [x] Centered Elon Sad over the dog and extended the overlay by 100 ms. Edge verified the placement and extra display time while the ghost returned. All 60 tests, lint, and build passed.
