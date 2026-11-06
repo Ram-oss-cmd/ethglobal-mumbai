@@ -4,6 +4,10 @@ import {
   type Direction, type GameState,
 } from '../game'
 import type { RunView } from '../competition/protocol'
+import {
+  BOARD_WIDTH as WIDTH, BOARD_HEIGHT as HEIGHT, gate, PLAYER_SIZE, TILE_HEIGHT, TILE_WIDTH, wallPaths, WALL_STROKE,
+} from './mazeGeometry'
+
 import tracer from './assets/tracer.svg'
 import snare from './assets/snare.svg'
 import relay from './assets/relay.svg'
@@ -15,6 +19,8 @@ import normalRight from './assets/normal_looking right-Photoroom.png'
 import hitLeft from './assets/hit_looking left-Photoroom.png'
 import hitRight from './assets/hit_looking right-Photoroom.png'
 import starVideo from './assets/star.mp4'
+
+export { BOARD_ASPECT } from './mazeGeometry'
 
 const sprites = {
   tracer,
@@ -29,15 +35,8 @@ const sprites = {
   hit_right: hitRight,
 }
 
-const TILE_WIDTH = 60
-const TILE_HEIGHT = 54
-const PLAYER_SIZE = 92
 const GHOST_SIZE = 54
-const WALL_STROKE = 4
-const WIDTH = MAZE[0].length * TILE_WIDTH
-const HEIGHT = MAZE.length * TILE_HEIGHT
 const BACKGROUND = 0x000000
-export const BOARD_ASPECT = WIDTH / HEIGHT
 const keys = new Map<string, Direction>([
   ['arrowup', 'up'], ['w', 'up'],
   ['arrowleft', 'left'], ['a', 'left'],
@@ -57,67 +56,20 @@ export type Hud = {
 function drawMaze(scene: Phaser.Scene) {
   const texture = scene.textures.createCanvas('walls', WIDTH, HEIGHT)!
   const ctx = texture.context
-  const columns = MAZE[0].length
-  const reach = 24
-  const insetX = 14
-  const insetY = 17
-  // Offset contours into blocked cells, leaving simulation tile centers unchanged.
-  const wall = (x: number, y: number) => {
-    const cell = MAZE[y]?.[Math.max(0, Math.min(x, columns - 1))] ?? '#'
-    return cell === '#' || cell === 'G'
-  }
-
   ctx.beginPath()
-  for (let y = 0; y <= MAZE.length; y++) {
-    for (let x = 0; x <= columns; x++) {
-      const left = x * TILE_WIDTH
-      const top = y * TILE_HEIGHT
-      const cells = [wall(x - 1, y - 1), wall(x, y - 1), wall(x, y), wall(x - 1, y)]
-      const edges = cells.map((cell, i) => cell !== cells[(i + 1) % 4])
-      const ports = [
-        [cells[0] ? -insetX : insetX, -reach],
-        [reach, cells[1] ? -insetY : insetY],
-        [cells[2] ? insetX : -insetX, reach],
-        [-reach, cells[3] ? insetY : -insetY],
-      ]
-      if (edges[1] && x < columns) {
-        ctx.moveTo(left + reach, top + ports[1][1])
-        ctx.lineTo(left + TILE_WIDTH - reach, top + ports[1][1])
-      }
-      if (edges[2] && y < MAZE.length) {
-        ctx.moveTo(left + ports[2][0], top + reach)
-        ctx.lineTo(left + ports[2][0], top + TILE_HEIGHT - reach)
-      }
-      const connect = (a: number, b: number) => {
-        const [ax, ay] = ports[a]
-        const [bx, by] = ports[b]
-        ctx.moveTo(left + ax, top + ay)
-        if (a % 2 !== b % 2) ctx.lineTo(left + (a % 2 ? bx : ax), top + (a % 2 ? ay : by))
-        ctx.lineTo(left + bx, top + by)
-      }
-      const joins = [0, 1, 2, 3].filter(i => edges[i])
-      if (joins.length === 2) connect(joins[0], joins[1])
-      if (joins.length === 4) {
-        cells.forEach((cell, i) => { if (cell) connect((i + 3) % 4, i) })
-      }
-    }
+  for (const path of wallPaths) {
+    ctx.moveTo(...path[0])
+    for (const point of path.slice(1)) ctx.lineTo(...point)
+    if (path[0] === path.at(-1)) ctx.closePath()
   }
-  ctx.lineCap = 'square'
+  ctx.lineJoin = 'miter'
   ctx.lineWidth = WALL_STROKE
   ctx.strokeStyle = '#4657ff'
   ctx.stroke()
   scene.add.image(0, 0, texture).setOrigin(0)
 
   // Keep the full gate visible when a ghost crosses it.
-  const gate = scene.add.graphics().setDepth(1)
-  MAZE.forEach((row, y) => {
-    const door = row.indexOf('D')
-    if (door >= 0) {
-      const lintel = y * TILE_HEIGHT + insetY
-      gate.lineStyle(WALL_STROKE, 0xffa8ce)
-        .lineBetween(door * TILE_WIDTH - insetX, lintel, (door + 1) * TILE_WIDTH + insetX, lintel)
-    }
-  })
+  scene.add.graphics().setDepth(1).lineStyle(WALL_STROKE, 0xffa8ce).lineBetween(...gate[0], ...gate[1])
   const g = scene.add.graphics()
   const vaultX = VAULT.x * TILE_WIDTH
   const threshold = VAULT.y * TILE_HEIGHT
@@ -259,6 +211,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
       },
       create(this: Phaser.Scene) {
         this.game.canvas.setAttribute('aria-hidden', 'true')
+        this.game.canvas.style.imageRendering = 'auto'
         for (const key of ['normal_left', 'normal_right', 'hit_left', 'hit_right']) {
           this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR)
         }
