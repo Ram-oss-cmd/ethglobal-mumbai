@@ -5,13 +5,13 @@ import { isIP } from 'node:net'
 import type { Duplex } from 'node:stream'
 import { isDeepStrictEqual } from 'node:util'
 import { WebSocket, WebSocketServer } from 'ws'
-import { createGame, stepGame, TICK_MS, type Direction, type GameState } from '../game'
-import { DIRECTIONS } from '../game/maze'
+import { createGame, stepGame, TICK_MS, type Direction, type GameState } from '../game/index.ts'
+import { DIRECTIONS } from '../game/maze.ts'
 import {
   MATCH_SOCKET_PATH, type ClientMessage, type MatchRecord, type MatchResult, type PlayerView,
   type RunRecord, type Seat, type ServerMessage,
-} from '../competition/protocol'
-import { buildMatchRecord, decideMatch, verifyMatchRecord } from '../competition/replay'
+} from '../competition/protocol.ts'
+import { buildMatchRecord, decideMatch, verifyMatchRecord } from '../competition/replay.ts'
 
 const SEATS = [0, 1] as const
 const MATCH_ID = /^[a-z0-9-]{3,32}$/i

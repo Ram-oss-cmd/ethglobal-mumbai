@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
-import type { GameState } from '../game'
-import { ENGINE_VERSION, type MatchRecord, type MatchResult, type Outcome, type RunRecord, type Seat } from './protocol'
-import { replayRun } from './run'
+import type { GameState } from '../game/index.ts'
+import { ENGINE_VERSION, type MatchRecord, type MatchResult, type Outcome, type RunRecord, type Seat } from './protocol.ts'
+import { replayRun } from './run.ts'
 
 export function decideMatch([first, second]: [GameState, GameState]): MatchResult | undefined {
   if (first.status === 'full-clear' || second.status === 'full-clear') {

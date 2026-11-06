@@ -1,5 +1,5 @@
-import { HOME_TILE, point, START_DOTS, START_PELLETS, START_TILE, VAULT_TILE, WIDTH } from './maze'
-import { randomIndex } from './random'
+import { HOME_TILE, point, START_DOTS, START_PELLETS, START_TILE, VAULT_TILE, WIDTH } from './maze.ts'
+import { randomIndex } from './random.ts'
 
 export type Dot = ReturnType<typeof point> & { id: number }
 type QueuedDot = Dot & { atMs: number }

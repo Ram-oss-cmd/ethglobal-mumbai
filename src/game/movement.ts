@@ -1,4 +1,4 @@
-import { type Direction, nextTile, OPPOSITE, point, VECTORS, WIDTH } from './maze'
+import { type Direction, nextTile, OPPOSITE, point, VECTORS, WIDTH } from './maze.ts'
 
 const TILE_UNITS = 1_000
 const HALF_TILE = TILE_UNITS / 2

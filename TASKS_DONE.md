@@ -9,3 +9,4 @@
 - [x] Added deterministic run reconstruction, match resolution, event logs and SHA-256 replay verification. Three replay tests passed for same-tick clears, tampered records and invalid input ticks.
 - [x] Added authoritative two-seat WebSocket rooms with ready starts, live snapshots, spectator reconnection and disconnect cancellation. Six real-socket tests passed, including forged inputs, seat protection and rate limits.
 - [x] Added side-by-side Phaser boards, room invites, replay scrubbing and record download. Edge verified live banking, spectator resume, cancellation and reconstruction of both runs. Practice retained touch controls and gained sharp walls, a visible ghost-room gate and blinking power pellets.
+- [x] Made Vite's server imports compatible with the native config loader. Default dev, native dev, and native preview served the app and accepted WebSocket joins without the loader warning. All 24 tests passed.

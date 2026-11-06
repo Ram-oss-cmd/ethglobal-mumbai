@@ -1,6 +1,6 @@
-import { createGame, type GameState, RUN_MS, stepGame, TICK_MS } from '../game'
-import { DIRECTIONS } from '../game/maze'
-import type { RunRecord } from './protocol'
+import { createGame, type GameState, RUN_MS, stepGame, TICK_MS } from '../game/index.ts'
+import { DIRECTIONS } from '../game/maze.ts'
+import type { RunRecord } from './protocol.ts'
 
 /** Reconstruct one run using the exact input applied on each server tick. */
 export function replayRun(

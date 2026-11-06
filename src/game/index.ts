@@ -1,16 +1,16 @@
 import {
   bankDots, type CoinState, collectDot, createCoins, releaseDots,
   scheduleLostDots, trackRoute,
-} from './coins'
-import { createGhosts, type Ghost, moveGhosts, touchesPlayer } from './ghosts'
+} from './coins.ts'
+import { createGhosts, type Ghost, moveGhosts, touchesPlayer } from './ghosts.ts'
 import {
   type Direction, nextTile, OPPOSITE, point, START_PELLETS, START_TILE, TOTAL_DOTS, VAULT_TILE,
-} from './maze'
-import { type Actor, createActor, moveActor, occupiedTile, reverseActor } from './movement'
+} from './maze.ts'
+import { type Actor, createActor, moveActor, occupiedTile, reverseActor } from './movement.ts'
 
-export { type Dot } from './coins'
-export { type Ghost, type GhostMode } from './ghosts'
-export { type Direction, MAZE, VAULT, GHOST_HOME, TOTAL_DOTS } from './maze'
+export { type Dot } from './coins.ts'
+export { type Ghost, type GhostMode } from './ghosts.ts'
+export { type Direction, MAZE, VAULT, GHOST_HOME, TOTAL_DOTS } from './maze.ts'
 
 export const TICK_MS = 10
 export const RUN_MS = 90_000

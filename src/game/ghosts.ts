@@ -1,9 +1,9 @@
 import {
   DIRECTIONS, type Direction, HOME_TILE, inGhostHouse, MAZE, nextTile, OPPOSITE, point, VAULT,
   VAULT_TILE, VECTORS, WIDTH,
-} from './maze'
-import { type Actor, createActor, moveActor, occupiedTile, reverseActor } from './movement'
-import { randomIndex } from './random'
+} from './maze.ts'
+import { type Actor, createActor, moveActor, occupiedTile, reverseActor } from './movement.ts'
+import { randomIndex } from './random.ts'
 
 export type GhostMode = 'chase' | 'scatter' | 'frightened' | 'returning' | 'recovering'
 type GhostId = 'tracer' | 'snare' | 'relay' | 'warden'

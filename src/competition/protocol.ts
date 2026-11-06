@@ -1,4 +1,4 @@
-import type { Direction, GameState } from '../game'
+import type { Direction, GameState } from '../game/index.ts'
 
 export const ENGINE_VERSION = 'wallet-rush-2'
 export const MATCH_SOCKET_PATH = '/ws'
