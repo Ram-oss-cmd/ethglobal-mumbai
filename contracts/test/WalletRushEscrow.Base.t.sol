@@ -54,7 +54,7 @@ abstract contract WalletRushEscrowTestBase is Test {
 
     function _open(bytes32 id, address a, address b) internal {
         vm.prank(referee);
-        escrow.openMatch(id, a, b, t0 + DEP, t0 + REF);
+        escrow.openMatch(id, a, b, t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     function _deposit(bytes32 id, address who) internal {
@@ -111,7 +111,7 @@ abstract contract WalletRushEscrowTestBase is Test {
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                 keccak256(bytes("Wallet Rush Escrow")),
-                keccak256(bytes("1")),
+                keccak256(bytes("2")),
                 block.chainid,
                 address(escrow)
             )

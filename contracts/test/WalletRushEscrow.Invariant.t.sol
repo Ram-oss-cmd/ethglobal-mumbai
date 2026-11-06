@@ -39,15 +39,16 @@ contract WalletRushEscrowHandler is Test {
         return ids[seed % ids.length];
     }
 
-    function open(uint256 a, uint256 offB, uint256 ddOff, uint256 raOff) external {
+    function open(uint256 a, uint256 offB, uint256 ddOff, uint256 raOff, uint32 stakeSeed) external {
         if (ids.length >= 12) return;
         address pa = actors[a % actors.length];
         address pb = actors[(a + 1 + (offB % (actors.length - 1))) % actors.length];
         uint64 dd = uint64(block.timestamp + bound(ddOff, 1, 3 hours));
         uint64 ra = dd + uint64(bound(raOff, 1, 1 days));
         bytes32 id = keccak256(abi.encode("inv", ids.length));
+        uint32 stake = uint32(bound(stakeSeed, 1e6, 100e6));
         vm.prank(referee);
-        escrow.openMatch(id, pa, pb, dd, ra);
+        escrow.openMatch(id, pa, pb, dd, ra, stake);
         ids.push(id);
     }
 
@@ -116,14 +117,16 @@ contract WalletRushEscrowInvariantTest is WalletRushEscrowTestBase {
         targetContract(address(handler));
     }
 
-    /// PROPERTY: escrow USDC balance == 10 USDC per deposit in unfinalized matches + all deferred claimables.
+    /// PROPERTY: escrow USDC balance equals live deposits plus all deferred claimables.
     function invariant_EscrowBalanceEqualsLiveDepositsPlusClaimable() public view {
         uint256 expected;
         for (uint256 i; i < handler.idCount(); ++i) {
-            (,,,, bool dA, bool dB, bool fin) = escrow.getMatch(handler.ids(i));
+            bytes32 id = handler.ids(i);
+            (,,,, bool dA, bool dB, bool fin) = escrow.getMatch(id);
             if (!fin) {
-                if (dA) expected += STAKE;
-                if (dB) expected += STAKE;
+                uint32 stake = escrow.getStake(id);
+                if (dA) expected += stake;
+                if (dB) expected += stake;
             }
         }
         for (uint256 i; i < handler.actorCount(); ++i) {

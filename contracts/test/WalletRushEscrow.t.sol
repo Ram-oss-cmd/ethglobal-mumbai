@@ -11,7 +11,8 @@ contract WalletRushEscrowTest is WalletRushEscrowTestBase {
     function test_Constructor_StoresReferee() public view {
         assertEq(escrow.REFEREE(), referee);
         assertEq(address(escrow.USDC()), USDC_ADDR);
-        assertEq(escrow.STAKE(), STAKE);
+        assertEq(escrow.MIN_STAKE(), 1e6);
+        assertEq(escrow.MAX_STAKE(), 100e6);
     }
 
     function test_Constructor_RevertsOnZeroReferee() public {
@@ -23,7 +24,7 @@ contract WalletRushEscrowTest is WalletRushEscrowTestBase {
 
     function test_OpenMatch_StoresAndEmits() public {
         vm.expectEmit(true, true, true, true, address(escrow));
-        emit WalletRushEscrow.MatchOpened(ID, alice, bob, t0 + DEP, t0 + REF);
+        emit WalletRushEscrow.MatchOpened(ID, alice, bob, t0 + DEP, t0 + REF, uint32(STAKE));
         _open(ID, alice, bob);
 
         (address pa, address pb, uint64 dd, uint64 ra, bool dA, bool dB, bool fin) = escrow.getMatch(ID);
@@ -39,61 +40,61 @@ contract WalletRushEscrowTest is WalletRushEscrowTestBase {
     function test_OpenMatch_RevertsForNonReferee() public {
         vm.prank(carol);
         vm.expectRevert(WalletRushEscrow.UnauthorizedReferee.selector);
-        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + REF);
+        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsForPlayerCaller() public {
         vm.prank(alice);
         vm.expectRevert(WalletRushEscrow.UnauthorizedReferee.selector);
-        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + REF);
+        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsOnZeroId() public {
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.InvalidMatchId.selector);
-        escrow.openMatch(bytes32(0), alice, bob, t0 + DEP, t0 + REF);
+        escrow.openMatch(bytes32(0), alice, bob, t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsOnDuplicateId() public {
         _open(ID, alice, bob);
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.MatchAlreadyExists.selector);
-        escrow.openMatch(ID, carol, mallory, t0 + DEP, t0 + REF);
+        escrow.openMatch(ID, carol, mallory, t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsOnZeroPlayerA() public {
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.InvalidPlayers.selector);
-        escrow.openMatch(ID, address(0), bob, t0 + DEP, t0 + REF);
+        escrow.openMatch(ID, address(0), bob, t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsOnZeroPlayerB() public {
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.InvalidPlayers.selector);
-        escrow.openMatch(ID, alice, address(0), t0 + DEP, t0 + REF);
+        escrow.openMatch(ID, alice, address(0), t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsWhenPlayersEqual() public {
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.InvalidPlayers.selector);
-        escrow.openMatch(ID, alice, alice, t0 + DEP, t0 + REF);
+        escrow.openMatch(ID, alice, alice, t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsWhenDepositDeadlineEqualsNow() public {
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.InvalidDepositDeadline.selector);
-        escrow.openMatch(ID, alice, bob, t0, t0 + REF);
+        escrow.openMatch(ID, alice, bob, t0, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsWhenDepositDeadlineExpired() public {
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.InvalidDepositDeadline.selector);
-        escrow.openMatch(ID, alice, bob, t0 - 1, t0 + REF);
+        escrow.openMatch(ID, alice, bob, t0 - 1, t0 + REF, uint32(STAKE));
     }
 
     function test_OpenMatch_AcceptsDepositDeadlineOneSecondAhead() public {
         vm.prank(referee);
-        escrow.openMatch(ID, alice, bob, t0 + 1, t0 + 2);
+        escrow.openMatch(ID, alice, bob, t0 + 1, t0 + 2, uint32(STAKE));
         (,, uint64 dd,,,,) = escrow.getMatch(ID);
         assertEq(dd, t0 + 1);
     }
@@ -101,13 +102,13 @@ contract WalletRushEscrowTest is WalletRushEscrowTestBase {
     function test_OpenMatch_RevertsWhenRefundAfterEqualsDepositDeadline() public {
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.InvalidRefundAfter.selector);
-        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + DEP);
+        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + DEP, uint32(STAKE));
     }
 
     function test_OpenMatch_RevertsWhenRefundAfterBeforeDepositDeadline() public {
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.InvalidRefundAfter.selector);
-        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + DEP - 1);
+        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + DEP - 1, uint32(STAKE));
     }
 
     function test_OpenMatch_ReopeningFinalizedMatchFails() public {
@@ -116,7 +117,7 @@ contract WalletRushEscrowTest is WalletRushEscrowTestBase {
         assertTrue(_finalized(ID));
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.MatchAlreadyExists.selector);
-        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + REF);
+        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + REF, uint32(STAKE));
     }
 
     // ------------------------------------------------------------------ deposit
@@ -235,9 +236,36 @@ contract WalletRushEscrowTest is WalletRushEscrowTestBase {
 
     // ------------------------------------------------------------------ getMatch
 
+    function test_MatchedStakePaysOnlyTheAgreedPoolAndRefundsOtherMatch() public {
+        vm.startPrank(referee);
+        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + REF, 5e6);
+        escrow.openMatch(ID2, alice, bob, t0 + DEP, t0 + REF, 7_250_000);
+        vm.stopPrank();
+        assertEq(escrow.getStake(ID), 5e6);
+        assertEq(escrow.getStake(ID2), 7_250_000);
+        _deposit(ID, alice);
+        _deposit(ID, bob);
+        _deposit(ID2, alice);
+        assertEq(_bal(address(escrow)), 17_250_000);
+        _settle(ID, 2, 3, 7);
+        assertEq(_bal(bob), START_BAL + 5e6);
+        assertEq(_bal(address(escrow)), 7_250_000);
+        vm.warp(t0 + DEP + 1);
+        escrow.refundExpired(ID2);
+        assertEq(_bal(alice), START_BAL - 5e6);
+        assertEq(_bal(address(escrow)), 0);
+    }
+
+    function testFuzz_RejectsStakeOutsideBounds(uint32 amount) public {
+        vm.assume(amount < 1e6 || amount > 100e6);
+        vm.prank(referee);
+        vm.expectRevert(WalletRushEscrow.InvalidStake.selector);
+        escrow.openMatch(ID, alice, bob, t0 + DEP, t0 + REF, amount);
+    }
+
     function test_GetMatch_ReturnOrder() public {
         vm.prank(referee);
-        escrow.openMatch(ID, carol, mallory, t0 + 111, t0 + 222);
+        escrow.openMatch(ID, carol, mallory, t0 + 111, t0 + 222, uint32(STAKE));
         _deposit(ID, mallory);
 
         (address pa, address pb, uint64 dd, uint64 ra, bool dA, bool dB, bool fin) = escrow.getMatch(ID);
@@ -287,7 +315,7 @@ contract WalletRushEscrowTest is WalletRushEscrowTestBase {
         (bytes1 fields, string memory name, string memory version, uint256 chainId, address vc,,) = escrow.eip712Domain();
         assertEq(uint8(fields), 0x0f);
         assertEq(name, "Wallet Rush Escrow");
-        assertEq(version, "1");
+        assertEq(version, "2");
         assertEq(chainId, block.chainid);
         assertEq(vc, address(escrow));
     }

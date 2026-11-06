@@ -177,7 +177,7 @@ contract WalletRushEscrowRefundTest is WalletRushEscrowTestBase {
         escrow.refundExpired(ID);
         vm.prank(referee);
         vm.expectRevert(WalletRushEscrow.MatchAlreadyExists.selector);
-        escrow.openMatch(ID, alice, bob, uint64(block.timestamp + DEP), uint64(block.timestamp + REF));
+        escrow.openMatch(ID, alice, bob, uint64(block.timestamp + DEP), uint64(block.timestamp + REF), uint32(STAKE));
     }
 
     function test_Refund_OneMatchDoesNotTouchAnotherMatchFunds() public {

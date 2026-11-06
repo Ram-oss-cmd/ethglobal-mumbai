@@ -9,7 +9,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 /**
  * @title WalletRushEscrow
- * @notice Two-player, fixed-stake USDC escrow for Wallet Rush on Arc Testnet (5042002).
+ * @notice Two-player, matched-stake USDC escrow for Wallet Rush on Arc Testnet (5042002).
  * @dev The immutable referee key is the sole trust root for replay outcomes; replay
  * verification takes place off-chain. Only the two recorded players can receive
  * escrowed funds. There is no owner, admin withdrawal, upgrade or pause path.
@@ -25,7 +25,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  *
  * EIP-712 integration:
  * Domain: EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)
- * name = "Wallet Rush Escrow", version = "1", chainId = the current chain ID
+ * name = "Wallet Rush Escrow", version = "2", chainId = the current chain ID
  * (5042002 on Arc Testnet), verifyingContract = this deployed escrow address.
  * Type: Result(bytes32 matchId,address playerA,address playerB,uint8 outcome,uint32 scoreA,uint32 scoreB,uint64 validUntil,bytes32 replayDigest)
  * Participants are always read from the opened match. Sign the typed-data digest,
@@ -36,14 +36,14 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 public constant USDC = IERC20(0x3600000000000000000000000000000000000000);
-    uint256 public constant STAKE = 10_000_000;
+    uint32 public constant MIN_STAKE = 1_000_000;
+    uint32 public constant MAX_STAKE = 100_000_000;
     bytes32 public constant RESULT_TYPEHASH = keccak256(
         "Result(bytes32 matchId,address playerA,address playerB,uint8 outcome,uint32 scoreA,uint32 scoreB,uint64 validUntil,bytes32 replayDigest)"
     );
 
     address public immutable REFEREE;
 
-    // Two storage slots: address + uint64 + three bools, then address + uint64.
     // A nonzero playerA permanently marks an existing match, including after finalization.
     struct Match {
         address playerA;
@@ -53,6 +53,7 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
         bool finalized;
         address playerB;
         uint64 refundAfter;
+        uint32 stake;
     }
 
     mapping(bytes32 matchId => Match) private _matches;
@@ -63,6 +64,7 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
     error InvalidMatchId();
     error MatchAlreadyExists();
     error InvalidPlayers();
+    error InvalidStake();
     error InvalidDepositDeadline();
     error InvalidRefundAfter();
     error MatchNotFound();
@@ -86,7 +88,8 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
         address indexed playerA,
         address indexed playerB,
         uint64 depositDeadline,
-        uint64 refundAfter
+        uint64 refundAfter,
+        uint32 stake
     );
     event Deposited(bytes32 indexed matchId, address indexed player, uint256 amount);
     event Settled(bytes32 indexed matchId, uint8 outcome, bytes32 replayDigest);
@@ -94,18 +97,19 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
     event PayoutDeferred(bytes32 indexed matchId, address indexed player, uint256 amount);
     event Claimed(address indexed player, uint256 amount);
 
-    constructor(address referee) EIP712("Wallet Rush Escrow", "1") {
+    constructor(address referee) EIP712("Wallet Rush Escrow", "2") {
         if (referee == address(0)) revert ZeroReferee();
         REFEREE = referee;
     }
 
-    /// @notice Permanently registers participants and deadlines for a fresh match ID.
+    /// @notice Permanently registers participants, deadlines and the agreed stake per player.
     function openMatch(
         bytes32 matchId,
         address playerA,
         address playerB,
         uint64 depositDeadline,
-        uint64 refundAfter
+        uint64 refundAfter,
+        uint32 stake
     ) external {
         if (msg.sender != REFEREE) revert UnauthorizedReferee();
         if (matchId == bytes32(0)) revert InvalidMatchId();
@@ -113,6 +117,7 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
         if (playerA == address(0) || playerB == address(0) || playerA == playerB) {
             revert InvalidPlayers();
         }
+        if (stake < MIN_STAKE || stake > MAX_STAKE) revert InvalidStake();
         if (depositDeadline <= block.timestamp) revert InvalidDepositDeadline();
         if (refundAfter <= depositDeadline) revert InvalidRefundAfter();
 
@@ -123,13 +128,14 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
             depositedB: false,
             finalized: false,
             playerB: playerB,
-            refundAfter: refundAfter
+            refundAfter: refundAfter,
+            stake: stake
         });
 
-        emit MatchOpened(matchId, playerA, playerB, depositDeadline, refundAfter);
+        emit MatchOpened(matchId, playerA, playerB, depositDeadline, refundAfter, stake);
     }
 
-    /// @notice Deposits exactly 10 USDC once, up to and including the deposit deadline.
+    /// @notice Deposits the agreed amount once, up to and including the deposit deadline.
     function deposit(bytes32 matchId) external nonReentrant {
         Match storage game = _activeMatch(matchId);
         if (block.timestamp > game.depositDeadline) revert DepositWindowClosed();
@@ -144,14 +150,15 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
             revert NotPlayer();
         }
 
+        uint256 stake = game.stake;
         uint256 balanceBefore = USDC.balanceOf(address(this));
-        USDC.safeTransferFrom(msg.sender, address(this), STAKE);
+        USDC.safeTransferFrom(msg.sender, address(this), stake);
         uint256 balanceAfter = USDC.balanceOf(address(this));
-        if (balanceAfter < balanceBefore || balanceAfter - balanceBefore != STAKE) {
-            revert IncorrectDepositAmount(STAKE, balanceAfter < balanceBefore ? 0 : balanceAfter - balanceBefore);
+        if (balanceAfter < balanceBefore || balanceAfter - balanceBefore != stake) {
+            revert IncorrectDepositAmount(stake, balanceAfter < balanceBefore ? 0 : balanceAfter - balanceBefore);
         }
 
-        emit Deposited(matchId, msg.sender, STAKE);
+        emit Deposited(matchId, msg.sender, stake);
     }
 
     /// @notice Submits a referee-signed result. Outcomes: 1=A, 2=B, 3=tie, 4=cancel.
@@ -185,12 +192,12 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
 
         game.finalized = true;
         if (outcome == 1) {
-            _payout(matchId, game.playerA, 2 * STAKE);
+            _payout(matchId, game.playerA, 2 * uint256(game.stake));
         } else if (outcome == 2) {
-            _payout(matchId, game.playerB, 2 * STAKE);
+            _payout(matchId, game.playerB, 2 * uint256(game.stake));
         } else {
-            _payout(matchId, game.playerA, STAKE);
-            _payout(matchId, game.playerB, STAKE);
+            _payout(matchId, game.playerA, game.stake);
+            _payout(matchId, game.playerB, game.stake);
         }
 
         emit Settled(matchId, outcome, replayDigest);
@@ -207,12 +214,12 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
 
         game.finalized = true;
         if (game.depositedA) {
-            _payout(matchId, game.playerA, STAKE);
-            emit Refunded(matchId, game.playerA, STAKE);
+            _payout(matchId, game.playerA, game.stake);
+            emit Refunded(matchId, game.playerA, game.stake);
         }
         if (game.depositedB) {
-            _payout(matchId, game.playerB, STAKE);
-            emit Refunded(matchId, game.playerB, STAKE);
+            _payout(matchId, game.playerB, game.stake);
+            emit Refunded(matchId, game.playerB, game.stake);
         }
     }
 
@@ -223,6 +230,10 @@ contract WalletRushEscrow is EIP712, ReentrancyGuard {
         claimable[msg.sender] = 0;
         USDC.safeTransfer(msg.sender, amount);
         emit Claimed(msg.sender, amount);
+    }
+
+    function getStake(bytes32 matchId) external view returns (uint32) {
+        return _matches[matchId].stake;
     }
 
     /// @notice Returns match data, or all zeros/false for an unknown match ID.
