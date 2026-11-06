@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { RESPAWN_MAX_MS, RESPAWN_MIN_MS } from './coins'
-import { createGame, type Direction, type GameState, loseLife, MAZE, stepGame, TICK_MS, TOTAL_DOTS } from './index'
+import { createGame, DEATH_PAUSE_MS, type Direction, type GameState, loseLife, MAZE, stepGame, TICK_MS, TOTAL_DOTS } from './index'
 import { HOME_TILE, START_TILE, TUNNEL_ROW, VAULT_TILE, WIDTH } from './maze'
 import { createActor } from './movement'
 
@@ -53,10 +53,11 @@ describe('collecting and banking', () => {
     expect(state.carried).toBe(2)
     loseLife(state)
     expect(state).toMatchObject({ lives: 2, carried: 0, banked: 3 })
-    expect(state.player).toEqual(createActor(START_TILE))
+    expect(state.player).not.toEqual(createActor(START_TILE))
     expect(state.queuedDots).toHaveLength(2)
     expectConserved(state)
-    advance(state, RESPAWN_MAX_MS / TICK_MS)
+    advance(state, DEATH_PAUSE_MS / TICK_MS)
+    expect(state.player).toEqual(createActor(START_TILE))
     expect(state.queuedDots).toHaveLength(0)
     for (const id of bankedIds) expect(unbankedIds(state)).not.toContain(id)
     expectConserved(state)
@@ -98,7 +99,8 @@ describe('collecting and banking', () => {
       stepGame(state)
       expectConserved(state)
       for (const dot of schedule) {
-        expect(state.dots.some(active => active.id === dot.id)).toBe(dot.atMs <= state.elapsedMs)
+        const sameTile = dot.x === Math.round(state.player.x) && dot.y === Math.round(state.player.y)
+        expect(state.dots.some(active => active.id === dot.id)).toBe(dot.atMs <= state.elapsedMs && !sameTile)
       }
     }
   })
@@ -109,10 +111,11 @@ describe('collecting and banking', () => {
     advance(state, 32, 'down')
     expect(state.carried).toBe(2)
     loseLife(state)
-    expect(state).toMatchObject({ elapsedMs: 320, lives: 0, status: 'out-of-lives' })
-    advance(state, RESPAWN_MAX_MS / TICK_MS, 'left')
-    expect(state).toMatchObject({ elapsedMs: 320, lives: 0, carried: 0, status: 'out-of-lives' })
-    expect(state.player).toEqual(createActor(START_TILE))
+    const hitPosition = { ...state.player }
+    expect(state).toMatchObject({ elapsedMs: 320, lives: 0, status: 'playing' })
+    advance(state, DEATH_PAUSE_MS / TICK_MS + 1, 'left')
+    expect(state).toMatchObject({ elapsedMs: 320 + DEATH_PAUSE_MS, lives: 0, carried: 0, status: 'out-of-lives' })
+    expect(state.player).toEqual(hitPosition)
     expect(state.queuedDots).toHaveLength(0)
     expectConserved(state)
   })
@@ -131,7 +134,7 @@ describe('collecting and banking', () => {
     expectConserved(state)
 
     state.ghosts = []
-    stepGame(state)
+    advance(state, DEATH_PAUSE_MS / TICK_MS)
     expect(state.queuedDots).toHaveLength(0)
     expect(state.dots).toContainEqual({ id: dot.id, x: dot.x, y: dot.y })
     expectConserved(state)

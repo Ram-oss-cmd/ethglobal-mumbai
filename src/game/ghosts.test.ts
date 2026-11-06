@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createGame, type Direction, type GameState, GHOST_HOME, stepGame, TICK_MS, VAULT } from './index'
+import { createGame, DEATH_PAUSE_MS, type Direction, type GameState, GHOST_HOME, stepGame, TICK_MS, VAULT } from './index'
 import { START_TILE, VAULT_TILE, WIDTH } from './maze'
 import { createActor, occupiedTile } from './movement'
 
@@ -31,7 +31,7 @@ describe('ghost behavior', () => {
     expect(state).toMatchObject({ elapsedMs: 30_000, lives: 3, carried: 0, banked: 3 })
   })
 
-  it('loses carried dots on contact and resets only the wallet', () => {
+  it('freezes both sides at contact, then respawns only the wallet', () => {
     const state = createGame(1)
     advance(state, 55, 'down')
     advance(state, 55, 'up')
@@ -45,12 +45,18 @@ describe('ghost behavior', () => {
     stepGame(state)
     expect(state).toMatchObject({ lives: 2, carried: 0, banked: 3 })
     expect(state.queuedDots).toHaveLength(2)
-    expect(state.player).toEqual(createActor(START_TILE))
+    expect(state.player).not.toEqual(createActor(START_TILE))
     expect(state.ghosts).toBe(ghosts)
     expect(ghosts[0].tile).toBe(collisionTile)
-    const positionAfterDeath = { x: ghosts[0].x, y: ghosts[0].y }
+    const actorsAtDeath = structuredClone([state.player, ...ghosts])
+    advance(state, DEATH_PAUSE_MS / TICK_MS - 1, 'down')
+    expect([state.player, ...ghosts]).toEqual(actorsAtDeath)
+    expect(state.waveMs).toBe(waveBeforeDeath + TICK_MS)
     stepGame(state, 'down')
-    expect(ghosts[0]).not.toMatchObject(positionAfterDeath)
+    expect(state.player).toEqual(createActor(START_TILE))
+    expect(ghosts).toEqual(actorsAtDeath.slice(1))
+    stepGame(state, 'down')
+    expect(ghosts[0]).not.toEqual(actorsAtDeath[1])
     expect(state.waveMs).toBe(waveBeforeDeath + 2 * TICK_MS)
     expect(state.player.y).toBeCloseTo(13.064)
     expect(state.lives).toBe(2)

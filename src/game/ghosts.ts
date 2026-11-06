@@ -1,5 +1,5 @@
 import {
-  DIRECTIONS, type Direction, HOME_TILE, MAZE, nextTile, OPPOSITE, point, VAULT,
+  DIRECTIONS, type Direction, HOME_TILE, inGhostHouse, MAZE, nextTile, OPPOSITE, point, VAULT,
   VAULT_TILE, VECTORS, WIDTH,
 } from './maze'
 import { type Actor, createActor, moveActor, occupiedTile, reverseActor } from './movement'
@@ -33,6 +33,7 @@ const roster = {
 
 const cells = MAZE.join('')
 const corridors = [...cells].flatMap((cell, tile) => cell !== '#' && cell !== 'V' ? [tile] : [])
+const publicCorridors = corridors.filter(tile => !inGhostHouse(tile))
 const exits = new Map(corridors.map(tile => [
   tile,
   DIRECTIONS.flatMap(direction => {
@@ -59,7 +60,7 @@ const routes = new Map(corridors.map(target => {
 
 export function createGhosts(): Ghost[] {
   return (Object.keys(roster) as GhostId[]).map(id => ({
-    ...createActor(HOME_TILE),
+    ...createActor(HOME_TILE + ({ tracer: 0, snare: -1, relay: 1, warden: 0 }[id])),
     id,
     mode: 'recovering',
     readyAtMs: roster[id].releaseMs,
@@ -97,11 +98,11 @@ function nearestCorridor(target: Point) {
   const x = Math.min(WIDTH - 1, Math.max(0, Math.round(target.x)))
   const y = Math.min(MAZE.length - 1, Math.max(0, Math.round(target.y)))
   const cell = y * WIDTH + x
-  if (routes.has(cell)) return cell
+  if (routes.has(cell) && !inGhostHouse(cell)) return cell
 
-  let nearest = corridors[0]
+  let nearest = publicCorridors[0]
   let shortest = Infinity
-  for (const tile of corridors) {
+  for (const tile of publicCorridors) {
     const candidate = point(tile)
     const distance = Math.abs(candidate.x - x) + Math.abs(candidate.y - y)
     if (distance < shortest) {
@@ -113,14 +114,19 @@ function nearestCorridor(target: Point) {
 }
 
 function chooseDirection(ghost: Ghost, tile: number, state: GhostContext): Direction {
-  const options = exits.get(tile)!
+  const exitsAtTile = exits.get(tile)!
+  const options = ghost.mode === 'returning' || inGhostHouse(tile)
+    ? exitsAtTile
+    : exitsAtTile.filter(exit => !inGhostHouse(exit.destination))
   const reverse = ghost.direction === null ? null : OPPOSITE[ghost.direction]
   const forward = options.filter(exit => exit.direction !== reverse)
   const choices = ghost.mode === 'returning' || forward.length === 0 ? options : forward
   if (choices.length === 1) return choices[0].direction
   if (ghost.mode === 'frightened') return choices[randomIndex(state, choices.length)].direction
 
-  const target = ghost.mode === 'returning' ? HOME_TILE : nearestCorridor(aim(ghost, state))
+  const target = ghost.mode === 'returning' ? HOME_TILE : inGhostHouse(tile)
+    ? HOME_TILE - 2 * WIDTH
+    : nearestCorridor(aim(ghost, state))
   const distances = routes.get(target)!
   return choices.reduce((best, next) =>
     distances[next.destination] < distances[best.destination] ? next : best,
@@ -164,7 +170,7 @@ export function moveGhosts(state: GhostContext, tickMs: number) {
 }
 
 export function touchesPlayer(ghost: Ghost, player: Actor) {
-  if (occupiedTile(player) === VAULT_TILE) return false
+  if (occupiedTile(player) === VAULT_TILE || inGhostHouse(occupiedTile(ghost))) return false
   const dx = Math.abs(ghost.x - player.x)
   const dy = ghost.y - player.y
   return Math.min(dx, WIDTH - dx) ** 2 + dy ** 2 <= 0.62 ** 2

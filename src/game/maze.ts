@@ -7,8 +7,8 @@ export const MAZE = [
   '#.........#.#####.....#',
   '#.#.#######.#######.#.#',
   '#.#.....#.....#.....#.#',
-  '#.#####.#.#.#.#.#####.#',
-  ' .........#G#......... ',
+  '#.#####.#.#D#.#.#####.#',
+  ' .........GGG......... ',
   '#.###.###.#.#.###.###.#',
   '#.#.................#.#',
   '#...#.###.###.###.#.#.#',
@@ -44,13 +44,18 @@ export function point(tile: number) {
 }
 
 export const START_TILE = tiles.indexOf('P')
-export const HOME_TILE = tiles.indexOf('G')
+const DOOR_TILE = tiles.indexOf('D')
+export const HOME_TILE = DOOR_TILE + WIDTH
 export const VAULT_TILE = tiles.indexOf('V')
 export const VAULT = point(VAULT_TILE)
 export const GHOST_HOME = point(HOME_TILE)
 export const START_DOTS = [...tiles].flatMap((cell, tile) => cell === '.' ? [tile] : [])
 export const START_PELLETS = [...tiles].flatMap((cell, tile) => cell === 'E' ? [tile] : [])
 export const TOTAL_DOTS = START_DOTS.length
+
+export function inGhostHouse(tile: number) {
+  return tiles[tile] === 'G' || tile === DOOR_TILE
+}
 
 export function nextTile(tile: number, direction: Direction, allowVault = false) {
   const { x, y } = point(tile)
@@ -60,5 +65,9 @@ export function nextTile(tile: number, direction: Direction, allowVault = false)
   if (nextY === TUNNEL_ROW) nextX = (nextX + WIDTH) % WIDTH
   const cell = MAZE[nextY]?.[nextX]
   if (!cell || cell === '#' || (!allowVault && cell === 'V')) return null
-  return nextY * WIDTH + nextX
+  const destination = nextY * WIDTH + nextX
+  if (inGhostHouse(tile) !== inGhostHouse(destination) &&
+      (allowVault || Math.min(tile, destination) !== DOOR_TILE - WIDTH ||
+       Math.max(tile, destination) !== DOOR_TILE)) return null
+  return destination
 }

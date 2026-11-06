@@ -2,7 +2,7 @@
 
 Collect. Escape. Bank. Win.
 
-An original arcade maze game for ETHGlobal Mumbai 2026. Practice is a solo, 90-second run with three lives and 190 collectible dots. It runs locally with no accounts or credentials.
+An original arcade maze game for ETHGlobal Mumbai 2026. Practice is a solo, 90-second run with three lives. It runs locally with no accounts or credentials.
 
 ## Run locally
 
@@ -24,7 +24,7 @@ npm run preview   # Serve the production build after npm run build
 - Click **Start practice**. Steer with the arrow keys, WASD, or the on-screen pad on touch devices. Tap before a turn to buffer it.
 - Move **down** from spawn for a quick first deposit. Crossing the green line at the bottom transfers all carried points. Ghosts stay outside the vault, and the clock keeps running inside.
 - For a quick power-up, restart, move **down**, and tap **left** as soon as you pick up the first dot. The turn queues at the bottom corridor and takes you to an Ethereum diamond in the corner. Catch frightened ghosts before power expires.
-- A hit costs one life and drops your carried points. Your wallet returns to spawn while the ghosts keep moving. Dots return to random spots on your route after staggered 0.9–1.2 second delays. An occupied spot waits until clear. Banked points stay secured for the run.
+- A hit costs one life and drops your carried points. Everyone holds their position for 1.5 seconds, then the wallet respawns and the ghosts resume from their positions. The match timer keeps running. Dots return to random spots on your route after staggered 0.9–1.2 second delays. An occupied spot waits until clear. Banked points stay secured for the run.
 
 ## Checks
 

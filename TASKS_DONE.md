@@ -5,3 +5,4 @@
 - [x] Shipped the Phaser practice arena, original sprites, HUD, and restart. Edge smoke passed for keyboard and touch banking, ghost eating, staggered returns, both loss endings, and replay.
 - [x] Slowed movement, kept ghosts active through wallet respawns, and staggered route drops by 0.9–1.2 seconds. All 15 engine tests passed, including occupied tiles and score conservation.
 - [x] Reworked the practice arena into a focused arcade cabinet with rounded blue maze walls, classic arcade colors, clean HUD, and solid-to-outline wallet lives. Full test, lint, production build, and browser banking/death smoke checks passed.
+- [x] Added a ghost-only spawn room and 1.5-second hit pause before wallet-only respawns. All 15 gameplay tests passed, including actor freeze, door collisions and ghost recovery.

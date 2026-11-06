@@ -4,7 +4,7 @@ import { DIRECTIONS, HOME_TILE, nextTile, START_TILE, VAULT_TILE, WIDTH } from '
 import { createActor } from './movement'
 
 describe('maze and movement', () => {
-  it('connects all floor tiles and gives the vault only its north entrance', () => {
+  it('connects public floor tiles, excludes the ghost room, and gives the vault one entrance', () => {
     expect(MAZE.every(row => row.length === WIDTH)).toBe(true)
     const reached = new Set([START_TILE])
     for (const tile of reached) {
@@ -13,7 +13,15 @@ describe('maze and movement', () => {
         if (next !== null) reached.add(next)
       }
     }
-    expect(reached.size).toBe([...MAZE.join('')].filter(cell => cell !== '#').length)
+    expect(reached.size).toBe([...MAZE.join('')].filter(cell => !'#GD'.includes(cell)).length)
+    const door = HOME_TILE - WIDTH
+    expect(reached.has(door)).toBe(false)
+    expect(reached.has(HOME_TILE)).toBe(false)
+    expect(nextTile(door - WIDTH, 'down', true)).toBeNull()
+    expect(nextTile(door - WIDTH, 'down')).toBe(door)
+    expect(nextTile(door, 'down')).toBe(HOME_TILE)
+    expect(nextTile(HOME_TILE - 2, 'right')).toBeNull()
+    expect(nextTile(HOME_TILE + 2, 'left')).toBeNull()
     expect(DIRECTIONS.map(direction => nextTile(VAULT_TILE, direction, true))).toEqual([
       VAULT_TILE - WIDTH, null, null, null,
     ])

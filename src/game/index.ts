@@ -14,6 +14,7 @@ export { type Direction, MAZE, VAULT, GHOST_HOME, TOTAL_DOTS } from './maze'
 
 export const TICK_MS = 10
 export const RUN_MS = 90_000
+export const DEATH_PAUSE_MS = 1_500
 const PLAYER_SPEED = 64
 const RESPAWN_SHIELD_MS = 2_100
 const POWER_DURATION_MS = 7_000
@@ -26,6 +27,7 @@ export interface GameState extends CoinState {
   status: RunStatus
   frightenedUntilMs: number
   invulnerableUntilMs: number
+  respawnAtMs: number
   player: Actor
   ghosts: Ghost[]
   pellets: ReturnType<typeof point>[]
@@ -42,6 +44,7 @@ export function createGame(seed: number): GameState {
     status: 'playing',
     frightenedUntilMs: 0,
     invulnerableUntilMs: 0,
+    respawnAtMs: 0,
     player: createActor(START_TILE),
     ghosts: createGhosts(),
     pellets: START_PELLETS.map(point),
@@ -54,10 +57,15 @@ export function createGame(seed: number): GameState {
 export function loseLife(state: GameState) {
   state.lives--
   scheduleLostDots(state, state.elapsedMs, TICK_MS)
-  state.player = createActor(START_TILE)
   state.requestedDirection = null
-  state.invulnerableUntilMs = state.elapsedMs + RESPAWN_SHIELD_MS
-  if (state.lives === 0) state.status = 'out-of-lives'
+  state.respawnAtMs = Math.min(RUN_MS, state.elapsedMs + DEATH_PAUSE_MS)
+}
+
+function finishTick(state: GameState) {
+  if (state.status === 'playing' && state.elapsedMs === RUN_MS) state.status = 'timeout'
+  if (state.queuedDots.length === 0) return
+  const occupied = state.status === 'playing' ? [occupiedTile(state.player), ...state.ghosts.map(occupiedTile)] : []
+  releaseDots(state, state.elapsedMs, occupied)
 }
 
 export function stepGame(state: GameState, input?: Direction) {
@@ -69,6 +77,18 @@ export function stepGame(state: GameState, input?: Direction) {
     return
   }
   state.elapsedMs += TICK_MS
+  if (state.respawnAtMs > 0) {
+    if (state.elapsedMs === state.respawnAtMs) {
+      state.respawnAtMs = 0
+      if (state.lives === 0) state.status = 'out-of-lives'
+      else if (state.elapsedMs < RUN_MS) {
+        state.player = createActor(START_TILE)
+        state.invulnerableUntilMs = state.elapsedMs + RESPAWN_SHIELD_MS
+      }
+    }
+    finishTick(state)
+    return
+  }
   if (input) state.requestedDirection = input
   const { player, requestedDirection } = state
 
@@ -111,9 +131,6 @@ export function stepGame(state: GameState, input?: Direction) {
     }
   }
 
-  if (state.status === 'playing' && state.elapsedMs === RUN_MS) state.status = 'timeout'
-  if (state.queuedDots.length > 0) {
-    const occupied = state.status === 'playing' ? [occupiedTile(state.player), ...state.ghosts.map(occupiedTile)] : []
-    releaseDots(state, state.elapsedMs, occupied)
-  }
+  if (state.elapsedMs === RUN_MS && state.lives === 0) state.status = 'out-of-lives'
+  finishTick(state)
 }
