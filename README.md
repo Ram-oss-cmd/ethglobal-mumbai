@@ -19,6 +19,18 @@ Open `http://localhost:5173`.
 npm run preview   # Serve the production build after npm run build
 ```
 
+## Two-player competition
+
+1. Open the app in two browser sessions. Select **Two players** in each and join the same room ID, or share the invite link.
+2. Both players click **Ready**. Each client controls its own maze and sees both runs. The server starts them on the same tick with the same seed.
+3. After the result, use the replay controls to reconstruct either player's run or download the match record.
+
+The Node WebSocket server runs alongside Vite in dev and preview. For two devices on a trusted LAN, start with `npm run dev -- --host 0.0.0.0` and open the same LAN IP and port on both devices. For a custom host, set the server process's `WALLET_RUSH_ORIGIN` to the exact browser origin and forward WebSocket upgrades on `/ws`. [Vite server hooks](https://vite.dev/guide/api-plugin.html#configureserver), [ws upgrade handling](https://github.com/websockets/ws#multiple-servers-sharing-a-single-https-server)
+
+The server applies direction inputs at 10 ms ticks. It owns both scores and checks the final states against deterministic replays before publishing a result. A player who runs out of lives can spectate. A full clear ends the match immediately, with simultaneous clears on the same tick counted as a draw. Otherwise the final banked scores decide the result.
+
+An active player's disconnect pauses both clocks for up to 10 seconds of cumulative grace per seat. Reopen the room in the same browser tab to resume. If grace expires, the match is canceled and marked refund-eligible. Score ties are draws. This chunk records outcomes and moves no funds. Rooms and replay records live in server memory, and completed records expire after 10 minutes. Download the JSON to keep a copy. SHA-256 digests detect discrepancies when replaying a record. Trust in the origin of a result comes from the authoritative server.
+
 ## Play
 
 - Click **Start practice**. Steer with the arrow keys, WASD, or the on-screen pad on touch devices. Tap before a turn to buffer it.

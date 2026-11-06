@@ -7,3 +7,4 @@
 - [x] Reworked the practice arena into a focused arcade cabinet with rounded blue maze walls, classic arcade colors, clean HUD, and solid-to-outline wallet lives. Full test, lint, production build, and browser banking/death smoke checks passed.
 - [x] Added a ghost-only spawn room and 1.5-second hit pause before wallet-only respawns. All 15 gameplay tests passed, including actor freeze, door collisions and ghost recovery.
 - [x] Added deterministic run reconstruction, match resolution, event logs and SHA-256 replay verification. Three replay tests passed for same-tick clears, tampered records and invalid input ticks.
+- [x] Added authoritative two-seat WebSocket rooms with ready starts, live snapshots, spectator reconnection and disconnect cancellation. Six real-socket tests passed, including forged inputs, seat protection and rate limits.
