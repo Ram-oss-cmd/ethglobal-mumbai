@@ -6,3 +6,6 @@ coverage/
 .env
 .env.*
 !.env.example
+contracts/out/
+contracts/cache/
+lib/forge-std/

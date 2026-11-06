@@ -19,3 +19,4 @@
 - [x] Added the Rabdi match schema, replay compression and browser-side verification. Replay round-trip and tamper checks passed, and the live public endpoint answered a direct history query.
 - [x] Wired wallet connection, World eligibility, dual escrow consent, funding readiness, settlement receipts and public replay routes into the app. All 37 tests, lint and build passed. Edge verified injected-wallet switching, a real Arc balance read and a direct Rabdi query.
 - [x] Made the duel divider a 4 px white line and widened the mobile gap. Two Edge sessions verified the divider at 1280 px and 390 px with no horizontal overflow. All 37 tests, lint and build passed.
+- [x] Imported the reviewed Arc Studio escrow, ABI and test suite. The repository reproduced the Studio bytecode with 119 passing Foundry tests. Arc Testnet confirmed the deployment receipt, exact contract code, referee and 10 USDC stake.

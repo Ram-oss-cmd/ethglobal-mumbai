@@ -1,0 +1,52 @@
+{
+  "domain": {
+    "name": "Wallet Rush Escrow",
+    "version": "1",
+    "chainId": 5042002,
+    "verifyingContract": "<deployed WalletRushEscrow address>"
+  },
+  "primaryType": "Result",
+  "types": {
+    "Result": [
+      {
+        "name": "matchId",
+        "type": "bytes32"
+      },
+      {
+        "name": "playerA",
+        "type": "address"
+      },
+      {
+        "name": "playerB",
+        "type": "address"
+      },
+      {
+        "name": "outcome",
+        "type": "uint8"
+      },
+      {
+        "name": "scoreA",
+        "type": "uint32"
+      },
+      {
+        "name": "scoreB",
+        "type": "uint32"
+      },
+      {
+        "name": "validUntil",
+        "type": "uint64"
+      },
+      {
+        "name": "replayDigest",
+        "type": "bytes32"
+      }
+    ]
+  },
+  "outcomes": {
+    "1": "playerA wins (scoreA > scoreB)",
+    "2": "playerB wins (scoreB > scoreA)",
+    "3": "draw (scoreA == scoreB), both refunded",
+    "4": "cancellation, both refunded"
+  },
+  "notes": "Sign with eth_signTypedData_v4 (not personal_sign). playerA/playerB must equal the participants recorded by openMatch. ECDSA only (no ERC-1271)."
+}

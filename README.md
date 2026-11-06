@@ -60,7 +60,7 @@ The starting commit contained a text note. Codex implemented this practice chunk
 
 ## Sponsor demo
 
-See [manual setup, architecture, and demo steps](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. The prize lobby stays closed until all sponsor settings are configured. The Arc Studio deployment and funded sponsor demo are pending.
+See [manual setup, architecture, and demo steps](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. The [Arc Studio deployment record](docs/arc-deployment.md) links the verified testnet contract and receipt. The prize lobby stays closed until all sponsor settings are configured. The funded sponsor demo is pending.
 
 The actual Arkiv writer address will be recorded after the first confirmed write. For now, pass your configured public writer address to the query below. It reads the latest immutable match summaries owned and created by that address directly from Rabdi.
 
