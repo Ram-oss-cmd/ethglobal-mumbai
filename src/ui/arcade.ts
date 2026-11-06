@@ -9,12 +9,15 @@ import {
   board, boards, GHOST_SIZE, interpolateActor, TILE_WIDTH, WALL_STROKE,
 } from './mazeGeometry'
 
-import tracer from './assets/tracer.svg'
-import snare from './assets/snare.svg'
-import relay from './assets/relay.svg'
-import warden from './assets/warden.svg'
-import frightened from './assets/frightened.svg'
-import returning from './assets/returning.svg'
+import redLeft from './assets/red elon left.jpg'
+import redRight from './assets/red elon right.jpg'
+import pinkLeft from './assets/pink elon left.jpg'
+import pinkRight from './assets/pink elon right.jpg'
+import blueLeft from './assets/blue elon left.jpg'
+import blueRight from './assets/blue elon right.jpg'
+import yellowLeft from './assets/yellow elon left.jpg'
+import yellowRight from './assets/yellow elon right.jpg'
+import sad from './assets/elon sad.png'
 import normalLeft from './assets/normal_looking left-Photoroom.png'
 import normalRight from './assets/normal_looking right-Photoroom.png'
 import hitLeft from './assets/hit_looking left-Photoroom.png'
@@ -23,13 +26,21 @@ import starVideo from './assets/star.mp4'
 
 export { BOARD_ASPECT } from './mazeGeometry'
 
+const ghostPhotos = {
+  red_left: redLeft,
+  red_right: redRight,
+  pink_left: pinkLeft,
+  pink_right: pinkRight,
+  blue_left: blueLeft,
+  blue_right: blueRight,
+  yellow_left: yellowLeft,
+  yellow_right: yellowRight,
+}
+const ghostColors = { tracer: 'red', snare: 'pink', relay: 'blue', warden: 'yellow' } as const
+type Facing = 'left' | 'right'
+
 const sprites = {
-  tracer,
-  snare,
-  relay,
-  warden,
-  frightened,
-  returning,
+  sad,
   normal_left: normalLeft,
   normal_right: normalRight,
   hit_left: hitLeft,
@@ -139,18 +150,36 @@ function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObje
   }
 }
 
-function actor(scene: Phaser.Scene, texture: string, WIDTH: number, TILE_HEIGHT: number, baseSize = GHOST_SIZE, mirror = true) {
+function prepareGhostPhotos(textures: Phaser.Textures.TextureManager) {
+  for (const name of Object.keys(ghostPhotos)) {
+    const source = textures.get(`${name}_photo`).getSourceImage() as HTMLImageElement
+    const texture = textures.createCanvas(name, source.width, source.height)!
+    const context = texture.getContext()
+    context.drawImage(source, 0, 0)
+    const frame = context.getImageData(0, 0, source.width, source.height)
+    const { data } = frame
+    // Key out the JPEG's white backing while keeping the tinted face and soft edges.
+    for (let i = 0; i < data.length; i += 4) {
+      const whiteLevel = Math.min(data[i], data[i + 1], data[i + 2])
+      data[i + 3] = Math.max(0, (248 - whiteLevel) * 16)
+    }
+    context.putImageData(frame, 0, 0)
+    texture.refresh()
+    textures.remove(`${name}_photo`)
+  }
+}
+
+function actor(scene: Phaser.Scene, texture: string, WIDTH: number, TILE_HEIGHT: number, baseSize = GHOST_SIZE) {
   const size = baseSize * 2
   const image = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   const wrap = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   return (position: GameState['player'], nextTexture: string, alpha = 1) => {
     const x = Math.round((position.x + 0.5) * TILE_WIDTH)
     const y = Math.round((position.y + 0.5) * TILE_HEIGHT)
-    const flip = mirror && position.direction === 'left'
-    image.setPosition(x, y).setTexture(nextTexture).setDisplaySize(size, size).setAlpha(alpha).setFlipX(flip)
+    image.setPosition(x, y).setTexture(nextTexture).setDisplaySize(size, size).setAlpha(alpha)
     wrap.setVisible(x < size / 2 || x > WIDTH - size / 2)
       .setPosition(x + (x < WIDTH / 2 ? WIDTH : -WIDTH), y)
-      .setTexture(nextTexture).setDisplaySize(size, size).setAlpha(alpha).setFlipX(flip)
+      .setTexture(nextTexture).setDisplaySize(size, size).setAlpha(alpha)
   }
 }
 
@@ -183,7 +212,8 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
   let lastBanked = 0
   let bankFlashUntil = 0
   let draw: ((now: number) => void) | undefined
-  let playerFacing: 'left' | 'right' = 'left'
+  let playerFacing: Facing = 'left'
+  const ghostFacing = new Map<keyof typeof ghostColors, Facing>()
   const starRadius = playerSize * .575
 
   const domStar = document.createElement('video')
@@ -211,8 +241,10 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
     scene: {
       preload(this: Phaser.Scene) {
         for (const [name, source] of Object.entries(sprites)) this.load.image(name, source)
+        for (const [name, source] of Object.entries(ghostPhotos)) this.load.image(`${name}_photo`, source)
       },
       create(this: Phaser.Scene) {
+        prepareGhostPhotos(this.textures)
         this.game.canvas.setAttribute('aria-hidden', 'true')
         this.game.canvas.style.imageRendering = 'auto'
         for (const key of ['normal_left', 'normal_right', 'hit_left', 'hit_right']) {
@@ -223,8 +255,8 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
         const pellets = this.add.graphics()
         const bankFlash = this.add.rectangle((VAULT.x + 0.5) * TILE_WIDTH, VAULT.y * TILE_HEIGHT, TILE_WIDTH - 2, WALL_STROKE, 0xeaffd9)
           .setVisible(false)
-        const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id, WIDTH, TILE_HEIGHT))
-        const player = actor(this, 'normal_left', WIDTH, TILE_HEIGHT, playerSize, false)
+        const ghosts = Object.values(ghostColors).map(color => actor(this, `${color}_left`, WIDTH, TILE_HEIGHT))
+        const player = actor(this, 'normal_left', WIDTH, TILE_HEIGHT, playerSize)
 
         draw = (now) => {
           if (!state) return
@@ -236,13 +268,13 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           bankFlash.setVisible(!reducedEffects && now < bankFlashUntil)
           const duration = previous ? state.elapsedMs - previous.elapsedMs : 0
           const ratio = duration > 0 ? Math.min(1, (now - receivedAt) / Math.min(duration, 80)) : 1
-          const { elapsedMs, frightenedUntilMs } = state
-          const remainingPower = frightenedUntilMs - elapsedMs
-          const flashing = !reducedEffects && remainingPower <= 1400 && Math.floor(remainingPower / 160) % 2 === 0
+          const { elapsedMs, frightenedUntilMs, eatenGhostId, ghostPauseUntilMs, status } = state
           state.ghosts.forEach((ghost, i) => {
-            let texture: keyof typeof sprites = ghost.id
-            if (ghost.mode === 'returning' || ghost.mode === 'recovering') texture = 'returning'
-            if (ghost.mode === 'frightened' && !flashing) texture = 'frightened'
+            if (ghost.direction === 'left' || ghost.direction === 'right') ghostFacing.set(ghost.id, ghost.direction)
+            const facing = ghostFacing.get(ghost.id) ?? 'left'
+            const color = elapsedMs < frightenedUntilMs && ghost.mode !== 'returning' ? 'blue' : ghostColors[ghost.id]
+            const eaten = ghost.id === eatenGhostId && elapsedMs < ghostPauseUntilMs && status === 'playing'
+            const texture = eaten ? 'sad' : `${color}_${facing}`
             ghosts[i](interpolateActor(previous?.ghosts[i], ghost, ratio, columns), texture, Number(spritesVisible))
           })
 
@@ -279,6 +311,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
 
   return {
     present(next: RunView, smooth = false, visible = true) {
+      if (!next.elapsedMs || (state && next.elapsedMs < state.elapsedMs)) ghostFacing.clear()
       if (next.elapsedMs === 0 || (state?.respawnAtMs && next.respawnAtMs === 0 && next.status === 'playing')) {
         playerFacing = 'left'
       }

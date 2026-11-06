@@ -117,13 +117,13 @@ export function allowedOrigin(request: IncomingMessage, configuredOrigin?: strin
 function playerView(player: Player | null, phase: Room['phase']): PlayerView | null {
   if (!player) return null
   const { elapsedMs, lives, status, carried, banked, player: actor, ghosts, dots, pellets,
-    frightenedUntilMs, invulnerableUntilMs, respawnAtMs, ghostPauseUntilMs } = player.run
+    frightenedUntilMs, invulnerableUntilMs, respawnAtMs, ghostPauseUntilMs, eatenGhostId } = player.run
   return {
     playerId: player.id,
     ready: player.ready,
     connected: !!player.socket,
     run: phase === 'lobby' ? null : { elapsedMs, lives, status, carried, banked, player: actor, ghosts, dots,
-      pellets, frightenedUntilMs, invulnerableUntilMs, respawnAtMs, ghostPauseUntilMs },
+      pellets, frightenedUntilMs, invulnerableUntilMs, respawnAtMs, ghostPauseUntilMs, eatenGhostId },
   }
 }
 

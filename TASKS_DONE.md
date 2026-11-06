@@ -51,3 +51,4 @@
 - [x] Permanently removed carried dots on a hit in new runs. All 28 targeted tests and type checking passed, including repeated losses, preserved banked scores, and verification of an archived run with its original dot return.
 - [x] Replaced both hit sprites with the supplied PNGs. Edge loaded byte-identical copies and displayed both hit directions in play.
 - [x] Matched both multiplayer boards to the single-player dimensions and added a 12 px white divider. Two Edge sessions verified desktop sizing and horizontal scrolling at narrower widths. All 60 tests, lint, and build passed.
+- [x] Added directional ghost portraits, blue power-up portraits, and the sad portrait during the eaten-ghost pause. Edge verified the rendered transitions and transparent backgrounds. All 60 tests, lint, and build passed.

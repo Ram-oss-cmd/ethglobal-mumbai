@@ -14,7 +14,7 @@ export const MATCH_SOCKET_PATH = '/ws'
 export type Seat = 0 | 1
 export type RunView = Pick<GameState,
   'elapsedMs' | 'lives' | 'status' | 'carried' | 'banked' | 'player' | 'ghosts' |
-  'dots' | 'pellets' | 'frightenedUntilMs' | 'invulnerableUntilMs' | 'respawnAtMs' | 'ghostPauseUntilMs'>
+  'dots' | 'pellets' | 'frightenedUntilMs' | 'invulnerableUntilMs' | 'respawnAtMs' | 'ghostPauseUntilMs' | 'eatenGhostId'>
 
 export type ClientMessage =
   | { type: 'join'; matchId: string; resumeToken?: string; prizeToken?: string; initialStakeUnits?: number }

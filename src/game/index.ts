@@ -32,6 +32,7 @@ export interface GameState extends CoinState {
   invulnerableUntilMs: number
   respawnAtMs: number
   ghostPauseUntilMs: number
+  eatenGhostId?: Ghost['id']
   player: Actor
   ghosts: Ghost[]
   requestedDirection: Direction | null
@@ -102,7 +103,10 @@ export function stepGame(state: GameState, input?: Direction) {
   }
   if (input) state.requestedDirection = input
   if (state.ghostPauseUntilMs > 0) {
-    if (state.elapsedMs === state.ghostPauseUntilMs) state.ghostPauseUntilMs = 0
+    if (state.elapsedMs === state.ghostPauseUntilMs) {
+      state.ghostPauseUntilMs = 0
+      state.eatenGhostId = undefined
+    }
     finishTick(state)
     return
   }
@@ -141,6 +145,7 @@ export function stepGame(state: GameState, input?: Direction) {
       if (!touchesPlayer(ghost, player, maze)) continue
       if (ghost.mode === 'frightened') {
         ghost.mode = 'returning'
+        state.eatenGhostId = ghost.id
         state.ghostPauseUntilMs = state.elapsedMs + GHOST_EAT_PAUSE_MS
         // The celebration consumes match time, but preserves the remaining power-up.
         state.frightenedUntilMs += GHOST_EAT_PAUSE_MS
