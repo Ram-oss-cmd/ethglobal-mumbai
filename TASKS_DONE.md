@@ -40,3 +40,4 @@
 - [x] Widened the rendered maze, enlarged the dog sprite, and kept the practice clock on real time. Edge verified the dog assets and life icons, banking three points, and a complete 90-second run.
 - [x] Required an active Wallet Rush sign-in before requesting wallet signatures or transactions. All nine wallet tests passed, including a signed-out browser whose MetaMask permission remained active.
 - [x] Streamlined staked entry and started play after both deposits cleared. Two Edge sessions verified the Arc switch, matched offers, automatic readiness, and free-room readiness. The 905.5 px practice maze fit at 1280×900. All 53 app tests, lint, and build passed.
+- [x] Simplified Multiplayer into Create Match and Join Match, and moved account controls and recovery to the wallet menu. Edge verified the 390 px layout, balance switching, low-balance feedback, code entry, and automatic start after two simulated deposits.

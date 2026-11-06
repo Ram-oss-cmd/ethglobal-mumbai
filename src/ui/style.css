@@ -158,19 +158,34 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
   .wallet-choice { transition: none; }
   .wallet-choice:hover { transform: none; }
 }
-.wallet-address { overflow-wrap: anywhere; }
-.wallet-balance {
-  margin-block: 20px;
-  padding-block: 12px;
-  border-block: 1px solid #332d32;
+.wallet-menu { position: relative; margin-left: auto; }
+.wallet-menu > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid #565055;
+  border-radius: 8px;
+  cursor: pointer;
 }
-.wallet-balance p { margin: 0 0 5px; }
-.wallet-balance strong { color: #fff4e6; }
-.wallet-balance a { font-size: .82rem; }
-.wallet-balance p:last-child { margin: 7px 0 0; font-size: .85rem; }
-.wallet-picker { justify-content: center; }
-.wallet-picker-error { flex-basis: 100%; margin: 0; }
-.wallet-picker select {
+.wallet-menu > summary::after { content: '▾'; color: var(--yellow); }
+.wallet-menu-balance { color: #c5bcb0; font-size: .8rem; }
+.wallet-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 10;
+  width: min(350px, calc(100vw - 24px));
+  padding: 14px;
+  border: 1px solid #565055;
+  border-radius: 8px;
+  background: #111;
+  font-size: .85rem;
+}
+.wallet-menu-panel > a, .wallet-advanced, .wallet-picker-error { flex-basis: 100%; }
+.wallet-picker-error { margin: 0; }
+.wallet-menu-panel select {
   font: inherit;
   min-height: 34px;
   max-width: 100%;
@@ -179,11 +194,33 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
   border-radius: 8px;
   background: #111;
 }
-.prize-panel details { margin-top: 16px; }
-.prize-panel summary { cursor: pointer; }
-.prize-panel form { margin-top: 8px; }
-.prize-panel .stake-hint { margin-block: 6px 18px; font-size: .85rem; }
-#room-stake { width: 9ch; }
+.wallet-advanced summary { cursor: pointer; padding-block: 6px; }
+.wallet-advanced input { flex: 1; }
+.multiplayer-lobby { width: min(100%, 420px); margin: clamp(32px, 9vh, 84px) auto; }
+.lobby-form { display: grid; gap: 12px; }
+.lobby-form + .lobby-form { margin-top: 28px; padding-top: 24px; border-top: 1px solid #332d32; }
+.lobby-form h2 { margin: 0; font-size: 1.15rem; }
+.lobby-form p { margin: 0; color: #c5bcb0; font-size: .85rem; }
+.lobby-form > :is(input, button), .match-options label {
+  min-height: 44px;
+  border: 1px solid #565055;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+}
+.lobby-form > input { background: #111; width: 100%; }
+.lobby-form > button { background: var(--yellow); color: #14110b; font-weight: 700; }
+.lobby-form > button:disabled { opacity: .45; cursor: default; }
+.match-options { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.match-options label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.match-options label:has(:checked) { border-color: var(--yellow); }
+.match-options input { margin: 0; accent-color: var(--yellow); }
+.match-options small { margin-left: auto; color: #c5bcb0; }
+.entry-refresh { margin-bottom: 8px; font-size: .8rem; }
+@media (max-width: 480px) {
+  .mode-switch { gap: 5px; }
+  .mode-switch button { padding-inline: 7px; font-size: .8rem; }
+}
 a { color: #a8afff; }
 .match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 

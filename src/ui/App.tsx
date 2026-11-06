@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import type { Address } from 'viem'
+import { formatUnits, type Address } from 'viem'
+import { ARC_TESTNET } from '../arc/chain.ts'
+import { useArcBalance } from '../web3/useArcBalance'
 import { injectedWallet, PRIZE_SESSION_KEY, selectedWalletAccount, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from '../web3/wallet'
 import { BOARD_ASPECT, createArcade, steeringKey, type Hud } from './arcade'
 import { ArenaFooter, endings, initialHud, Scoreboard, TouchControls } from './CabinetHud'
@@ -24,6 +26,8 @@ export default function App() {
     if (replayId || location.pathname === '/history') return 'history'
     return match || location.pathname === '/multiplayer' ? 'multiplayer' : 'practice'
   })
+  const [walletActions, setWalletActions] = useState<HTMLDivElement | null>(null)
+  const balance = useArcBalance(mode === 'multiplayer' ? account : undefined)
 
   const signOut = useCallback(() => {
     localStorage.removeItem(WALLET_SIGN_IN_KEY)
@@ -117,27 +121,37 @@ export default function App() {
           <button type="button" aria-pressed={multiplayer} onClick={() => changeMode('multiplayer')}>Multiplayer</button>
           <button type="button" aria-pressed={mode === 'history'} onClick={() => changeMode('history')}>Match history</button>
         </nav>
-        <div className="match-actions wallet-picker" aria-label="Wallet settings">
-          <label htmlFor="player-wallet"><span className="sr-only">Player </span>Wallet</label>
-          <select id="player-wallet" value={account.toLowerCase()} onChange={event => {
-            const selected = event.target.value
-            sessionStorage.setItem(WALLET_ACCOUNT_KEY, selected)
-            setPreferred(selected)
-          }}>
-            {accounts.map(address => <option key={address} value={address.toLowerCase()}>{address.slice(0, 8)}…{address.slice(-4)}</option>)}
-          </select>
-          <button type="button" aria-label="Manage accounts" disabled={connecting} onClick={() => void connect(true)}>Accounts</button>
-          <button type="button" onClick={() => {
-            history.replaceState(null, '', '/')
-            setMode('practice')
-            signOut()
-          }}>Sign out</button>
-        </div>
-        {walletError && <p className="wallet-picker-error" role="alert">{walletError}</p>}
+        <details className="wallet-menu" key={mode}>
+          <summary><span>{account.slice(0, 6)}…{account.slice(-4)}</span>
+            {multiplayer && <span className="wallet-menu-balance">{balance === undefined ? 'Loading…' : balance === null ? 'Balance unavailable'
+              : `${formatUnits(balance / 10n ** 14n, 4)} test USDC`}</span>}
+          </summary>
+          <div className="wallet-menu-panel match-actions" aria-label="Wallet settings">
+            <label htmlFor="player-wallet"><span className="sr-only">Player </span>Wallet</label>
+            <select id="player-wallet" value={account.toLowerCase()} onChange={event => {
+              const selected = event.target.value
+              sessionStorage.setItem(WALLET_ACCOUNT_KEY, selected)
+              setPreferred(selected)
+            }}>
+              {accounts.map(address => <option key={address} value={address.toLowerCase()}>{address.slice(0, 8)}…{address.slice(-4)}</option>)}
+            </select>
+            <button type="button" aria-label="Manage accounts" disabled={connecting} onClick={() => void connect(true)}>Accounts</button>
+            <button type="button" onClick={() => {
+              history.replaceState(null, '', '/')
+              setMode('practice')
+              signOut()
+            }}>Sign out</button>
+            {multiplayer && <>
+              <a href={`${ARC_TESTNET.blockExplorers.default.url}/address/${account}`} target="_blank" rel="noreferrer">View on Arc Explorer</a>
+              <div className="wallet-advanced" ref={setWalletActions} />
+            </>}
+            {walletError && <p className="wallet-picker-error" role="alert">{walletError}</p>}
+          </div>
+        </details>
       </header> : <a href="/">Back to Wallet Rush</a>}
       <Suspense fallback={<p role="status">Loading…</p>}>
         {mode === 'practice' && <Practice />}
-        {multiplayer && account && <Multiplayer key={account} account={account} />}
+        {multiplayer && account && <Multiplayer key={account} account={account} balance={balance} walletActions={walletActions} />}
         {mode === 'history' && <History key={replayId ?? 'history'} matchId={replayId} />}
       </Suspense>
     </main>

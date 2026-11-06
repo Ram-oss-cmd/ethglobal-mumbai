@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { formatUnits, type Address, type Hex } from 'viem'
-import { ARC_TESTNET, arcTxUrl, matchKeyFor, parseStakeOffer, validStakeOffer } from '../arc/chain.ts'
+import { createPortal } from 'react-dom'
+import type { Address, Hex } from 'viem'
+import { ARC_TESTNET, arcTxUrl, ENTRY_AMOUNT, matchKeyFor } from '../arc/chain.ts'
 import Competition from '../ui/Competition'
 import { WorldGate } from '../world/WorldGate'
 import type { WorldChallenge } from '../world/types.ts'
 import { prizeRequest, type PrizeConfig, type PrizeMember } from './api'
 import DeferredClaim from './DeferredClaim'
-import { arc, checkedWallet, injectedWallet, PRIZE_SESSION_KEY, refundUSDC, switchToArc } from './wallet'
+import { checkedWallet, injectedWallet, PRIZE_SESSION_KEY, refundUSDC, switchToArc } from './wallet'
 
 const MATCH_CODE = /^[a-z0-9-]{3,32}$/
 type Session = { wallet: Address; token: string; expires: number }
@@ -16,7 +17,9 @@ function stakeDraftKey(id: string, account: Address) {
   return `wallet-rush:opening-stake:${account.toLowerCase()}:${id}`
 }
 
-export default function Multiplayer({ account }: { account: Address }) {
+export default function Multiplayer({ account, balance, walletActions }: {
+  account: Address; balance?: bigint | null; walletActions: HTMLDivElement | null
+}) {
   const [room, setRoom] = useState<Room | undefined>(() => {
     const id = (new URLSearchParams(location.search).get('match') ?? '').trim().toLowerCase()
     if (!MATCH_CODE.test(id)) return
@@ -24,15 +27,15 @@ export default function Multiplayer({ account }: { account: Address }) {
     return { id, initialStakeUnits: stored === null ? undefined : Number(stored) }
   })
   const [joinCode, setJoinCode] = useState('')
-  const [offer, setOffer] = useState('0')
-  const [config, setConfig] = useState<PrizeConfig>()
+  const [staked, setStaked] = useState(false)
+  const [config, setConfig] = useState<PrizeConfig | null>()
   const [chain, setChain] = useState<number>()
-  const [balance, setBalance] = useState<string | null>()
   const [session, setSession] = useState<Session | undefined>(() => {
     try { return JSON.parse(sessionStorage.getItem(PRIZE_SESSION_KEY) ?? 'null') ?? undefined } catch { return undefined }
   })
   const [verification, setVerification] = useState<{ challenge: WorldChallenge; session: Session }>()
   const [error, setError] = useState('')
+  const [recoveryError, setRecoveryError] = useState('')
   const [busy, setBusy] = useState(false)
   const [arcHelp, setArcHelp] = useState(false)
   const [refundCode, setRefundCode] = useState('')
@@ -44,7 +47,7 @@ export default function Multiplayer({ account }: { account: Address }) {
     void prizeRequest<PrizeConfig>('config').then(config => {
       if (!lifetime.signal.aborted) setConfig(config)
     }).catch(() => {
-      if (!lifetime.signal.aborted) setError('The stake settings are unavailable.')
+      if (!lifetime.signal.aborted) setConfig(null)
     })
     const { client, provider } = injectedWallet()
     let chainUpdated = false
@@ -52,26 +55,12 @@ export default function Multiplayer({ account }: { account: Address }) {
     provider.on('chainChanged', changed)
     void client.getChainId().then(activeChain => {
       if (!lifetime.signal.aborted && !chainUpdated) setChain(activeChain)
-    }, () => {
-      if (!lifetime.signal.aborted && !chainUpdated) setError('Could not read the wallet network.')
-    })
+    }, () => {})
     return () => {
       lifetime.abort()
       provider.removeListener('chainChanged', changed)
     }
   }, [])
-
-  useEffect(() => {
-    const lifetime = new AbortController()
-    const refresh = () => void arc.getBalance({ address: account }).then(value => {
-      if (!lifetime.signal.aborted) setBalance(formatUnits(value, ARC_TESTNET.nativeCurrency.decimals))
-    }).catch(() => {
-      if (!lifetime.signal.aborted) setBalance(null)
-    })
-    refresh()
-    const poll = window.setInterval(refresh, 5_000)
-    return () => { lifetime.abort(); window.clearInterval(poll) }
-  }, [account])
 
   useEffect(() => {
     if (!session) return
@@ -88,11 +77,11 @@ export default function Multiplayer({ account }: { account: Address }) {
     setVerification(undefined)
   }
 
-  function perform(action: () => Promise<unknown>) {
+  function perform(action: () => Promise<unknown>, report = setError) {
     setBusy(true)
-    setError('')
+    report('')
     void action().catch(failure => {
-      setError(failure instanceof Error ? failure.message.split('\n')[0] : 'Wallet request failed.')
+      report(failure instanceof Error ? failure.message.split('\n')[0] : 'Wallet request failed.')
     }).finally(() => setBusy(false))
   }
 
@@ -118,7 +107,7 @@ export default function Multiplayer({ account }: { account: Address }) {
     perform(async () => {
       await switchToArc()
       setChain(await injectedWallet().client.getChainId())
-    })
+    }, setRecoveryError)
   }
 
   function enter(next?: Room) {
@@ -128,15 +117,15 @@ export default function Multiplayer({ account }: { account: Address }) {
     if (next?.initialStakeUnits !== undefined) sessionStorage.setItem(stakeDraftKey(next.id, account), String(next.initialStakeUnits))
     else if (!next && room) sessionStorage.removeItem(stakeDraftKey(room.id, account))
     history.replaceState(null, '', url)
-    setArcHelp(false)
+    setError('')
     setRoom(next)
     if (!next) setVerification(undefined)
   }
 
   const onArc = chain === ARC_TESTNET.id
   const variable = config?.escrowVersion === '2'
-  const stakeUnits = parseStakeOffer(offer)
-  const canCreate = validStakeOffer(stakeUnits, variable) && (stakeUnits === 0 || config?.enabled)
+  const lowBalance = typeof balance === 'bigint' && balance < ENTRY_AMOUNT * 10n ** 12n
+  const canCreate = !staked || (config?.enabled === true && (variable || !lowBalance))
   const stakedRoom = room?.id.startsWith('prize-') === true
   const eligible = session?.wallet.toLowerCase() === account.toLowerCase()
   const member: PrizeMember | undefined = stakedRoom && onArc && eligible && session && config?.enabled && config.escrowAddress
@@ -145,51 +134,52 @@ export default function Multiplayer({ account }: { account: Address }) {
 
   return (
     <>
-      <section className="lobby prize-panel" aria-label="Multiplayer lobby">
-        <h2>{stakedRoom && !member ? 'Join a staked match' : 'Multiplayer'}</h2>
-        {!room && (
-          <>
-            <form className="match-actions" onSubmit={event => {
-              event.preventDefault()
-              if (!canCreate || stakeUnits === undefined) return
-              const bytes = crypto.getRandomValues(new Uint8Array(6))
-              const code = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
-              enter({ id: stakeUnits === 0 ? code : `prize-${code}`, initialStakeUnits: variable && stakeUnits > 0 ? stakeUnits : undefined })
-            }}>
-              <label htmlFor="room-stake">Stake in test USDC</label>
-              <input id="room-stake" inputMode="decimal" maxLength={10} value={offer} onChange={event => setOffer(event.target.value)} />
-              <button type="submit" disabled={!canCreate}>Create match</button>
-            </form>
-            <p className="stake-hint">0 for free play{config?.enabled && (variable ? ' · 1–100 test USDC for a staked match' : ' · 10 test USDC for a staked match')}</p>
-            <form className="match-actions" onSubmit={event => {
-              event.preventDefault()
-              if (MATCH_CODE.test(joinCode)) enter({ id: joinCode })
-            }}>
-              <label className="sr-only" htmlFor="match-code">Match code</label>
-              <input id="match-code" value={joinCode} maxLength={32} autoComplete="off" placeholder="Match code"
-                onChange={event => setJoinCode(event.target.value.trim().toLowerCase())} />
-              <button type="submit" disabled={!MATCH_CODE.test(joinCode)}>Join match</button>
-            </form>
-          </>
-        )}
-        {stakedRoom && !member && <p>Continue with MetaMask to use Arc Testnet and verify your entry.</p>}
-        {stakedRoom && config?.worldEnvironment === 'staging' && <p>World ID staging · simulator proofs are for testing.</p>}
-        {config && !config.enabled && <p>Staked matches await sponsor setup. A stake of 0 is available.</p>}
+      {!room && <section className="multiplayer-lobby" aria-label="Multiplayer lobby">
+        <form className="lobby-form" aria-labelledby="create-match-title" onSubmit={event => {
+          event.preventDefault()
+          if (!canCreate) return
+          const bytes = crypto.getRandomValues(new Uint8Array(6))
+          const code = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
+          enter({ id: staked ? `prize-${code}` : code, initialStakeUnits: variable && staked ? Number(ENTRY_AMOUNT) : undefined })
+        }}>
+          <h2 id="create-match-title">Create Match</h2>
+          <fieldset className="match-options">
+            <legend className="sr-only">Match type</legend>
+            <label><input type="radio" name="stake" checked={!staked} onChange={() => setStaked(false)} /> Free Match <small>0 USDC</small></label>
+            <label><input type="radio" name="stake" checked={staked} onChange={() => setStaked(true)} /> Staked Match <small>10 test USDC</small></label>
+          </fieldset>
+          {staked && config === undefined && <p role="status">Checking staked play…</p>}
+          {staked && config !== undefined && !config?.enabled && <p role="status">Staked play is unavailable.</p>}
+          {staked && config?.enabled && lowBalance && <p role="status">
+            {variable ? 'Balance below 10 test USDC. You can lower your offer in the room.' : 'Insufficient balance. Add at least 10 test USDC to play.'}
+          </p>}
+          <button type="submit" disabled={!canCreate}>Create match</button>
+        </form>
+        <form className="lobby-form" aria-labelledby="join-match-title" onSubmit={event => {
+          event.preventDefault()
+          if (MATCH_CODE.test(joinCode)) enter({ id: joinCode })
+        }}>
+          <h2 id="join-match-title">Join Match</h2>
+          <label className="sr-only" htmlFor="match-code">Match code</label>
+          <input id="match-code" value={joinCode} maxLength={32} autoComplete="off" placeholder="Match code"
+            onChange={event => setJoinCode(event.target.value.trim().toLowerCase())} />
+          <button type="submit" disabled={!MATCH_CODE.test(joinCode)}>Join match</button>
+        </form>
+      </section>}
+      {stakedRoom && (!member || busy || error || worldGate) && <section className={member ? 'entry-refresh' : 'lobby prize-panel'} aria-label="Staked match entry">
+        {!member && <h2>Join a staked match</h2>}
+        {!member && config?.enabled && <p>Continue with MetaMask to use Arc Testnet and verify your entry.</p>}
+        {!member && config?.worldEnvironment === 'staging' && <p>World ID staging · simulator proofs are for testing.</p>}
+        {!member && config === undefined && <p role="status">Checking staked play…</p>}
+        {!member && config !== undefined && !config?.enabled && <p role="status">Staked play is unavailable.</p>}
         <div className="match-actions">
-          {stakedRoom && config?.enabled && (
+          {!member && config?.enabled && (
             <button type="button" disabled={busy || Boolean(worldGate)} onClick={continueStakedMatch}>
-              {member ? 'Refresh eligibility session' : 'Continue with MetaMask'}
+              Continue with MetaMask
             </button>
           )}
-          {stakedRoom && !member && <button type="button" onClick={() => enter()}>Back to lobby</button>}
+          {!member && <button type="button" onClick={() => enter()}>Back to lobby</button>}
         </div>
-        {!room && <div className="wallet-balance">
-          <p>Arc Testnet balance <strong>{balance === undefined ? 'Loading…' : balance === null ? 'Unavailable' : `${balance} test USDC`}</strong></p>
-          <a className="wallet-address" href={new URL(`/address/${account}`, ARC_TESTNET.blockExplorers.default.url).href}
-            target="_blank" rel="noreferrer">{account}</a>
-          {balance === '0' && <p>Expected funds here? Choose the funded address under Player wallet.</p>}
-        </div>}
-        {stakedRoom && eligible && <p role="status">Wallet eligible for staked matches.</p>}
         {busy && <p role="status">Waiting for wallet or server confirmation…</p>}
         {error && <p role="alert">{error}</p>}
         {worldGate && <WorldGate challenge={worldGate.challenge}
@@ -199,37 +189,39 @@ export default function Multiplayer({ account }: { account: Address }) {
             setVerification(undefined)
             void prizeRequest('world-cancel', { nonce: worldGate.challenge.rp_context.nonce }, worldGate.session.token).catch(() => {})
           }} />}
-        {!room && config?.escrowAddress && (
-          <details onToggle={event => setArcHelp(event.currentTarget.open)}>
-            <summary>Arc refunds and claims</summary>
-            <p>If a staked match expires without settling, Arc can return deposits to the players.</p>
-            {arcHelp && !onArc && <div className="match-actions">
-              <button type="button" disabled={busy} onClick={switchNetwork}>Switch to Arc Testnet</button>
-            </div>}
-            {arcHelp && onArc && <>
-              <DeferredClaim account={account} escrow={config.escrowAddress} />
-              <form className="match-actions" onSubmit={event => {
-                event.preventDefault()
-                setRefundHash(undefined)
-                setRefundStatus('')
-                perform(async () => {
-                  const refund = await refundUSDC(account, config.escrowAddress!, matchKeyFor(refundCode), setRefundHash, config.escrowVersion)
-                  setRefundHash(refund.transactionHash)
-                  setRefundStatus(refund.deferredPayouts.length > 0
-                    ? 'Timeout processed with deferred payouts' : 'Timeout processed')
-                })
-              }}>
-                <input aria-label="Expired staked match code" placeholder="prize-…" value={refundCode}
-                  onChange={event => setRefundCode(event.target.value.trim().toLowerCase())} />
-                <button disabled={busy || !/^prize-[a-z0-9-]{3,26}$/.test(refundCode)}>Request timeout refund</button>
-              </form>
-              {refundHash && <p><a href={arcTxUrl(refundHash)}>{refundStatus || 'Submitted timeout refund'}</a></p>}
-            </>}
-          </details>
-        )}
-      </section>
+      </section>}
+      {walletActions && config?.escrowAddress && createPortal(
+        <details onToggle={event => setArcHelp(event.currentTarget.open)}>
+          <summary>Advanced · Refunds and claims</summary>
+          {member && <div className="match-actions">
+            <button type="button" disabled={busy || Boolean(worldGate)} onClick={continueStakedMatch}>Refresh eligibility session</button>
+          </div>}
+          {arcHelp && !onArc && <div className="match-actions">
+            <button type="button" disabled={busy} onClick={switchNetwork}>Switch to Arc Testnet</button>
+          </div>}
+          {arcHelp && onArc && <>
+            <DeferredClaim account={account} escrow={config.escrowAddress} />
+            <form className="match-actions" onSubmit={event => {
+              event.preventDefault()
+              setRefundHash(undefined)
+              setRefundStatus('')
+              perform(async () => {
+                const refund = await refundUSDC(account, config.escrowAddress!, matchKeyFor(refundCode), setRefundHash, config.escrowVersion)
+                setRefundHash(refund.transactionHash)
+                setRefundStatus(refund.deferredPayouts.length > 0
+                  ? 'Timeout processed with deferred payouts' : 'Timeout processed')
+              }, setRecoveryError)
+            }}>
+              <input aria-label="Expired staked match code" placeholder="prize-…" value={refundCode}
+                onChange={event => setRefundCode(event.target.value.trim().toLowerCase())} />
+              <button disabled={busy || !/^prize-[a-z0-9-]{3,26}$/.test(refundCode)}>Request timeout refund</button>
+            </form>
+            {refundHash && <p><a href={arcTxUrl(refundHash)}>{refundStatus || 'Submitted timeout refund'}</a></p>}
+          </>}
+          {arcHelp && recoveryError && <p role="alert">{recoveryError}</p>}
+        </details>, walletActions)}
       {room && (!stakedRoom || member) && <Competition key={room.id} matchId={room.id} initialStakeUnits={member?.version === '2' ? room.initialStakeUnits : undefined}
-        leave={() => enter()} prize={member} />}
+        leave={() => enter()} prize={member} balance={balance} />}
     </>
   )
 }

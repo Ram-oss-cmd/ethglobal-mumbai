@@ -5,10 +5,11 @@ import type { MatchResult, PrizeState, Seat } from '../competition/protocol.ts'
 import type { PrizeMember } from './api'
 import { arc, depositUSDC } from './wallet'
 
-export default function PrizeFunding({ member, prize, seat, ready, lobby, online, onReady, matchId, result, opponentConnected, onOffer, onConfirm }: {
+export default function PrizeFunding({ member, prize, seat, ready, lobby, online, onReady, matchId, result, opponentConnected, onOffer, onConfirm, balance }: {
   member: PrizeMember; prize?: PrizeState; seat: Seat; ready: boolean; lobby: boolean; online: boolean
   onReady: () => void; matchId: string; result?: MatchResult
   opponentConnected: boolean; onOffer: (units: number) => void; onConfirm: (revision: number) => void
+  balance?: bigint | null
 }) {
   const [funded, setFunded] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -20,6 +21,7 @@ export default function PrizeFunding({ member, prize, seat, ready, lobby, online
   const fundingMessage = prize?.message
   const stakeUnits = prize?.stakeUnits ?? Number(ENTRY_AMOUNT)
   const stake = BigInt(stakeUnits)
+  const lowBalance = typeof balance === 'bigint' && balance < stake * 10n ** 12n
   const ownPayout = prize?.settlementTx && result && !prize.deferredPayouts?.some(payout => isAddressEqual(payout.player, member.address))
     ? (result.kind === 'win' ? result.winner === seat ? 2n * stake : 0n : stake) : 0n
 
@@ -70,7 +72,10 @@ export default function PrizeFunding({ member, prize, seat, ready, lobby, online
           {funded ? (fundingMessage && !ready
             ? <button type="button" disabled={!online} onClick={onReady}>Check deposits again</button>
             : <p role="status">Stake confirmed. {opponentConnected ? 'The match starts when both stakes are confirmed.' : 'Waiting for your opponent to reconnect.'}</p>)
-            : <button type="button" disabled={busy || !online} onClick={deposit}>{busy ? 'Confirming on Arc…' : `Deposit ${formatUnits(stake, USDC_DECIMALS)} test USDC & play`}</button>}
+            : <>
+              <button type="button" disabled={busy || !online || lowBalance} onClick={deposit}>{busy ? 'Confirming on Arc…' : `Deposit ${formatUnits(stake, USDC_DECIMALS)} test USDC & play`}</button>
+              {lowBalance && <p role="status">Insufficient test USDC for this stake.</p>}
+            </>}
         </div>
       )}
       {funding && prize.depositDeadline && (
@@ -84,7 +89,7 @@ export default function PrizeFunding({ member, prize, seat, ready, lobby, online
       {ownPayout > 0n && <p role="status">{formatUnits(ownPayout, USDC_DECIMALS)} test USDC {result?.kind === 'win' ? 'transferred to' : 'refunded to'} your wallet.</p>}
       {prize?.deferredPayouts?.map(({ player, amount }) => (
         <p key={player} role="status">{formatUnits(BigInt(amount), USDC_DECIMALS)} test USDC was deferred for
-          {' '}{isAddressEqual(player, member.address) ? 'your wallet. Return to the lobby and open “Arc refunds and claims” to claim it.' : 'the other wallet.'}</p>
+          {' '}{isAddressEqual(player, member.address) ? 'your wallet. Open Wallet → Advanced to claim it.' : 'the other wallet.'}</p>
       ))}
       {prize?.historyKey && <a href={`/replay/${matchId}`}>Public Arkiv replay</a>}
       {prize?.archiveTx && <a href={`https://rabdi.explorer.arkiv.network/tx/${prize.archiveTx}`}>Arkiv archive receipt</a>}

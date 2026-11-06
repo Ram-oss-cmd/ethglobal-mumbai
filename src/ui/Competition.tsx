@@ -19,8 +19,8 @@ function inviteUrl(code: string) {
   return url
 }
 
-export default function Competition({ matchId, leave, prize, initialStakeUnits }: {
-  matchId: string; leave: () => void; prize?: PrizeMember; initialStakeUnits?: number
+export default function Competition({ matchId, leave, prize, initialStakeUnits, balance }: {
+  matchId: string; leave: () => void; prize?: PrizeMember; initialStakeUnits?: number; balance?: bigint | null
 }) {
   const ws = useRef<WebSocket | null>(null)
   const [join, setJoin] = useState<Join | null>(null)
@@ -178,7 +178,7 @@ export default function Competition({ matchId, leave, prize, initialStakeUnits }
         </section>
       )}
       {prize && join && <PrizeFunding member={prize} prize={snapshot?.prize} seat={seat} ready={Boolean(own?.ready)}
-        lobby={snapshot?.phase === 'lobby'} online={connection === 'online'}
+        lobby={snapshot?.phase === 'lobby'} online={connection === 'online'} balance={balance}
         matchId={matchId} result={result} opponentConnected={Boolean(opponent?.connected)}
         onOffer={stakeUnits => send({ type: 'stake-offer', stakeUnits })}
         onConfirm={revision => send({ type: 'confirm-stake', revision })} onReady={sendReady} />}

@@ -21,7 +21,7 @@ npm run preview   # Serve the production build after npm run build
 
 ## Two-player competition
 
-1. Open the app in two MetaMask-enabled browser sessions. In **Multiplayer**, leave the stake at `0` and click **Create match** for free play. Share the invite link or have the other player enter the same code with **Join match**.
+1. Open the app in two MetaMask-enabled browser sessions. In **Multiplayer**, choose **Free Match** and click **Create match**. Share the invite link or have the other player enter the same code with **Join match**.
 2. Both players click **Ready**. Each client controls the left maze and sees the opponent on the right. Both runs start on the same tick with a shared seed and distinct, replayable pellet layouts.
 3. After the result, use the replay controls to reconstruct either player's run or download the match record.
 
