@@ -16,3 +16,4 @@
 - [x] Kept each player's own maze on the left, added a divider, and generated non-overlapping seeded pellet layouts for both seats. Edge confirmed both views and live banking. Socket tests confirmed deterministic replays and blocked unauthenticated, duplicate, and unfunded prize seats.
 - [x] Added World IDKit v4 Proof of Human and a durable, wallet-bound eligibility ledger. Tests with a controlled verifier passed for success, cancellation, malformed proof rejection and cross-wallet duplicate rejection after restart.
 - [x] Added the Arc Testnet escrow client for receipt-verified opening, funding checks and EIP-712 settlement. Three adapter tests passed. The live Arc RPC confirmed chain ID 5042002 and official USDC's six ERC-20 decimals.
+- [x] Added the Rabdi match schema, replay compression and browser-side verification. Replay round-trip and tamper checks passed, and the live public endpoint answered a direct history query.
