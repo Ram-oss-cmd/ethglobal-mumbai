@@ -59,7 +59,7 @@ export type ServerMessage =
   | { type: 'state'; phase: 'lobby' | 'running' | 'paused' | 'finished'; tick: number;
       seats: [PlayerView | null, PlayerView | null]; reconnectBy?: number; result?: MatchResult; prize?: PrizeState }
   | { type: 'record'; record: MatchRecord }
-  | { type: 'error'; message: string; fatal?: boolean }
+  | { type: 'error'; message: string; fatal?: boolean; discardResume?: true }
 
 export interface PlayerView {
   playerId: string

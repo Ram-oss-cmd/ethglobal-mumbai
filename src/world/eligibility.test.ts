@@ -62,10 +62,20 @@ it('rejects invalid client fields, canceled requests and an unsuccessful provide
   const challenge = world.challenge(a)
   await expect(world.verify(a, proof(challenge, b))).rejects.toThrow('mismatched')
   await expect(world.verify(a, { ...proof(challenge), environment: 'production' })).rejects.toThrow('mismatched')
-  world.cancel(a)
+  world.cancel(a, challenge.rp_context.nonce)
   await expect(world.verify(a, proof(challenge))).rejects.toThrow('mismatched')
   expect(verifier).not.toHaveBeenCalled()
   verifier.mockResolvedValueOnce(Response.json({ success: false, environment: 'staging' }, { status: 400 }))
   await expect(world.verify(a, proof(world.challenge(a)))).rejects.toThrow('World rejected')
   expect(world.eligible(a)).toBe(false)
+})
+
+it('keeps a new challenge when an older tab cancels', async () => {
+  accept()
+  const world = createWorldEligibility(env)!
+  const previous = world.challenge(a)
+  const current = world.challenge(a)
+  world.cancel(a, previous.rp_context.nonce)
+  await world.verify(a, proof(current))
+  expect(world.eligible(a)).toBe(true)
 })

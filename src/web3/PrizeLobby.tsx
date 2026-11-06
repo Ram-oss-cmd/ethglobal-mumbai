@@ -145,7 +145,7 @@ export default function PrizeLobby() {
           onSuccess={() => save(worldGate.session)}
           onCancel={() => {
             setVerification(undefined)
-            void prizeRequest('world-cancel', {}, worldGate.session.token).catch(() => {})
+            void prizeRequest('world-cancel', { nonce: worldGate.challenge.rp_context.nonce }, worldGate.session.token).catch(() => {})
           }} />}
         {account && onArc && config?.escrowAddress && (
           <details>

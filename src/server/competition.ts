@@ -84,8 +84,8 @@ function send(socket: WebSocket, message: ServerMessage) {
   else socket.send(JSON.stringify(message))
 }
 
-function reject(socket: WebSocket, message: string, fatal = false) {
-  send(socket, { type: 'error', message, fatal })
+function reject(socket: WebSocket, message: string, fatal = false, discardResume?: true) {
+  send(socket, { type: 'error', message, fatal, discardResume })
   if (fatal) socket.close(1008)
 }
 
@@ -341,13 +341,13 @@ export function attachCompetition(
         let seat: Seat
         if (message.resumeToken) {
           const resumeRoom = target
-          if (!resumeRoom) return reject(socket, 'This match is no longer available.', true)
+          if (!resumeRoom) return reject(socket, 'This match is no longer available.', true, true)
           const token = Buffer.from(message.resumeToken)
           const found = SEATS.find(index => {
             const candidate = resumeRoom.seats[index]
             return candidate && (!wallet || candidate.id === wallet) && timingSafeEqual(token, Buffer.from(candidate.token))
           })
-          if (found === undefined) return reject(socket, 'Cannot resume this seat.', true)
+          if (found === undefined) return reject(socket, 'Cannot resume this seat.', true, true)
           if (resumeRoom.seats[found]?.socket) {
             reject(socket, 'Waiting for the previous connection to close.')
             socket.close(1013)

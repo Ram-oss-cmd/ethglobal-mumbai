@@ -23,3 +23,4 @@
 - [x] Showed deferred Arc payouts separately from settlement and enabled the recipient to claim them. Receipt filtering, WebSocket status and connected-wallet claim checks passed. All 39 app tests, lint and build passed, and the deployed contract answered the claimable read.
 - [x] Set route-dot respawns to 600–900 ms and versioned the replay rules. All 21 engine, replay, and archive tests passed, including 96 repeated losses across both layouts with banked-dot protection.
 - [x] Required matching Arc escrow events before confirming deposits and timeout refunds, and displayed the funding deadline. All eight wallet and Arc tests and TypeScript checks passed, including canceled and repriced transaction cases.
+- [x] Scoped prize-seat recovery to the connected wallet and World cancellation to its own challenge. All 14 server and World tests and TypeScript checks passed, including stale authorization, seat theft, and stale cancellation.

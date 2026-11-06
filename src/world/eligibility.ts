@@ -168,7 +168,10 @@ export function createWorldEligibility(env: NodeJS.ProcessEnv = process.env) {
     environment,
     challenge,
     verify,
-    cancel(wallet: string) { pending.delete(walletKey(wallet)) },
+    cancel(wallet: string, nonce: unknown) {
+      const key = walletKey(wallet)
+      if (typeof nonce === 'string' && pending.get(key)?.context.nonce === nonce) pending.delete(key)
+    },
     eligible(wallet: string) {
       const address = walletKey(wallet)
       return readRegistrations(path, scope).some(entry => entry.wallet === address)

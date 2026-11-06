@@ -72,9 +72,10 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
   const [error, setError] = useState('')
   const [invite, setInvite] = useState<'copied' | 'unavailable'>()
   const prizeToken = prize?.token
+  const prizeWallet = prize?.address.toLowerCase()
 
   useEffect(() => {
-    const storageKey = `wallet-rush:seat:${matchId}`
+    const storageKey = prizeWallet ? `wallet-rush:seat:${prizeWallet}:${matchId}` : `wallet-rush:seat:${matchId}`
     let resumeToken = sessionStorage.getItem(storageKey) ?? undefined
     let retry = 0
     let retryUntil = 0
@@ -110,10 +111,8 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
             break
           case 'error':
             fatal = message.fatal === true
-            if (fatal) {
-              sessionStorage.removeItem(storageKey)
-              setConnection('closed')
-            }
+            if (message.discardResume) sessionStorage.removeItem(storageKey)
+            if (fatal) setConnection('closed')
             setError(message.message)
             break
         }
@@ -144,7 +143,7 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
       ws.current?.close()
       ws.current = null
     }
-  }, [matchId, prizeToken])
+  }, [matchId, prizeToken, prizeWallet])
 
   function send(message: ClientMessage) {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(message))

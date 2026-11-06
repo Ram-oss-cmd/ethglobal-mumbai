@@ -135,7 +135,7 @@ export function createPrize() {
               await world.verify(wallet, input.proof)
               return reply(200, { eligible: true })
             case 'world-cancel':
-              world.cancel(wallet)
+              world.cancel(wallet, input.nonce)
               return reply(200, { eligible: false })
             default:
               return reply(404, { error: 'Unknown prize action.' })
