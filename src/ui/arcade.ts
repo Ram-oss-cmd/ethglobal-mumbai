@@ -29,11 +29,12 @@ const sprites = {
   hit_right: hitRight,
 }
 
-const TILE = 48
-const PLAYER_SIZE = 59
+const TILE_WIDTH = 60
+const TILE_HEIGHT = 54
+const PLAYER_SIZE = 106
 const GHOST_SIZE = 38
-const WIDTH = MAZE[0].length * TILE
-const HEIGHT = MAZE.length * TILE
+const WIDTH = MAZE[0].length * TILE_WIDTH
+const HEIGHT = MAZE.length * TILE_HEIGHT
 const BACKGROUND = 0x000000
 export const BOARD_ASPECT = WIDTH / HEIGHT
 
@@ -58,57 +59,49 @@ function drawMaze(scene: Phaser.Scene) {
   const texture = scene.textures.createCanvas('walls', WIDTH, HEIGHT)!
   const ctx = texture.context
   const columns = MAZE[0].length
-  const radius = 13
-  const ports = [[0, -radius], [radius, 0], [0, radius], [-radius, 0]]
-  // Extend each side's last tile so the open tunnel keeps its open ends.
-  const wall = (x: number, y: number) => (MAZE[y]?.[Math.max(0, Math.min(x, columns - 1))] ?? '#') === '#'
+  const reach = 24
+  const inset = 22
+  // Offset contours into blocked cells, leaving simulation tile centers unchanged.
+  const wall = (x: number, y: number) => {
+    const cell = MAZE[y]?.[Math.max(0, Math.min(x, columns - 1))] ?? '#'
+    return cell === '#' || cell === 'G'
+  }
 
   ctx.beginPath()
   for (let y = 0; y <= MAZE.length; y++) {
     for (let x = 0; x <= columns; x++) {
-      const left = x * TILE
-      const top = y * TILE
+      const left = x * TILE_WIDTH
+      const top = y * TILE_HEIGHT
       const cells = [wall(x - 1, y - 1), wall(x, y - 1), wall(x, y), wall(x - 1, y)]
       const edges = cells.map((cell, i) => cell !== cells[(i + 1) % 4])
+      const ports = [
+        [cells[0] ? -inset : inset, -reach],
+        [reach, cells[1] ? -inset : inset],
+        [cells[2] ? inset : -inset, reach],
+        [-reach, cells[3] ? inset : -inset],
+      ]
       if (edges[1] && x < columns) {
-        ctx.moveTo(left + radius, top)
-        ctx.lineTo(left + TILE - radius, top)
+        ctx.moveTo(left + reach, top + ports[1][1])
+        ctx.lineTo(left + TILE_WIDTH - reach, top + ports[1][1])
       }
       if (edges[2] && y < MAZE.length) {
-        ctx.moveTo(left, top + radius)
-        ctx.lineTo(left, top + TILE - radius)
+        ctx.moveTo(left + ports[2][0], top + reach)
+        ctx.lineTo(left + ports[2][0], top + TILE_HEIGHT - reach)
       }
-      const joins = ports.filter((_, i) => edges[i])
-      const connect = ([ax, ay]: number[], [bx, by]: number[]) => {
+      const connect = (a: number, b: number) => {
+        const [ax, ay] = ports[a]
+        const [bx, by] = ports[b]
         ctx.moveTo(left + ax, top + ay)
-        ctx.lineTo(left, top)
+        if (a % 2 !== b % 2) ctx.lineTo(left + (a % 2 ? bx : ax), top + (a % 2 ? ay : by))
         ctx.lineTo(left + bx, top + by)
       }
+      const joins = [0, 1, 2, 3].filter(i => edges[i])
       if (joins.length === 2) connect(joins[0], joins[1])
       if (joins.length === 4) {
-        cells.forEach((cell, i) => { if (cell) connect(ports[(i + 3) % 4], ports[i]) })
+        cells.forEach((cell, i) => { if (cell) connect((i + 3) % 4, i) })
       }
     }
   }
-  // House edges adjoining public corridors are solid except for the ghost door.
-  MAZE.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) {
-      if (row[x] !== 'G') continue
-      const left = x * TILE
-      const top = y * TILE
-      const right = left + TILE
-      const bottom = top + TILE
-      function boundary(cell: string | undefined, x1: number, y1: number, x2: number, y2: number) {
-        if (cell === undefined || cell === '#' || cell === 'G' || cell === 'D') return
-        ctx.moveTo(x1, y1)
-        ctx.lineTo(x2, y2)
-      }
-      boundary(row[x - 1], left, top, left, bottom)
-      boundary(row[x + 1], right, top, right, bottom)
-      boundary(MAZE[y - 1]?.[x], left, top, right, top)
-      boundary(MAZE[y + 1]?.[x], left, bottom, right, bottom)
-    }
-  })
   ctx.lineCap = 'square'
   ctx.lineWidth = 5
   ctx.strokeStyle = '#131d83'
@@ -121,14 +114,14 @@ function drawMaze(scene: Phaser.Scene) {
   const g = scene.add.graphics()
   MAZE.forEach((row, y) => {
     const door = row.indexOf('D')
-    if (door >= 0) g.fillStyle(0xffa8ce).fillRect(door * TILE + 4, y * TILE - 1, TILE - 8, 5)
+    if (door >= 0) g.fillStyle(0xffa8ce).fillRect(door * TILE_WIDTH + 4, y * TILE_HEIGHT - 1, TILE_WIDTH - 8, 5)
   })
-  const vaultX = VAULT.x * TILE
-  const threshold = VAULT.y * TILE
-  g.fillStyle(0xafff65).fillRect(vaultX + 1, threshold - 1, TILE - 2, 5)
+  const vaultX = VAULT.x * TILE_WIDTH
+  const threshold = VAULT.y * TILE_HEIGHT
+  g.fillStyle(0xafff65).fillRect(vaultX + 1, threshold - 1, TILE_WIDTH - 2, 5)
 
-  const cx = vaultX + Math.round(TILE / 2)
-  const cy = threshold + Math.round(TILE * 0.54)
+  const cx = vaultX + Math.round(TILE_WIDTH / 2)
+  const cy = threshold + Math.round(TILE_HEIGHT * 0.54)
 
   g.fillStyle(0xafff65)
   g.beginPath()
@@ -159,14 +152,14 @@ function drawMaze(scene: Phaser.Scene) {
 function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObjects.Graphics, state: RunView) {
   dots.clear().fillStyle(0xffba9d)
   for (const dot of state.dots) {
-    const x = (dot.x + 0.5) * TILE
-    const y = (dot.y + 0.5) * TILE
+    const x = (dot.x + 0.5) * TILE_WIDTH
+    const y = (dot.y + 0.5) * TILE_HEIGHT
     dots.fillCircle(x, y, 4.5)
   }
   pellets.clear()
   for (const pellet of state.pellets) {
-    const x = (pellet.x + 0.5) * TILE
-    const y = (pellet.y + 0.5) * TILE
+    const x = (pellet.x + 0.5) * TILE_WIDTH
+    const y = (pellet.y + 0.5) * TILE_HEIGHT
 
     pellets.fillStyle(0x627eea, 0.35).fillCircle(x, y, 26)
     pellets.fillStyle(0x9ec7ff, 0.4).fillCircle(x, y, 18)
@@ -185,11 +178,11 @@ function actor(scene: Phaser.Scene, texture: string, size = GHOST_SIZE, mirror =
   const image = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   const wrap = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   return (position: GameState['player'], nextTexture: string, alpha = 1) => {
-    const x = Math.round((position.x + 0.5) * TILE)
-    const y = Math.round((position.y + 0.5) * TILE)
+    const x = Math.round((position.x + 0.5) * TILE_WIDTH)
+    const y = Math.round((position.y + 0.5) * TILE_HEIGHT)
     const flip = mirror && position.direction === 'left'
     image.setPosition(x, y).setTexture(nextTexture).setDisplaySize(size, size).setAlpha(alpha).setFlipX(flip)
-    wrap.setVisible(x < TILE / 2 || x > WIDTH - TILE / 2)
+    wrap.setVisible(x < size / 2 || x > WIDTH - size / 2)
       .setPosition(x + (x < WIDTH / 2 ? WIDTH : -WIDTH), y)
       .setTexture(nextTexture).setDisplaySize(size, size).setAlpha(alpha).setFlipX(flip)
   }
@@ -269,7 +262,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
         drawMaze(this)
         const dots = this.add.graphics()
         const pellets = this.add.graphics()
-        const bankFlash = this.add.rectangle((VAULT.x + 0.5) * TILE, VAULT.y * TILE, TILE - 2, 7, 0xeaffd9)
+        const bankFlash = this.add.rectangle((VAULT.x + 0.5) * TILE_WIDTH, VAULT.y * TILE_HEIGHT, TILE_WIDTH - 2, 7, 0xeaffd9)
           .setVisible(false)
         const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id))
         const player = actor(this, 'normal_left', PLAYER_SIZE, false)
@@ -305,8 +298,8 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
 
           if (!reducedEffects && isEaten && spritesVisible) {
             domStar.style.display = 'block'
-            domStar.style.left = `${(pos.x + 0.5) * TILE / WIDTH * 100}%`
-            domStar.style.top = `${((pos.y + 0.5) * TILE - 30) / HEIGHT * 100}%`
+            domStar.style.left = `${(pos.x + 0.5) * TILE_WIDTH / WIDTH * 100}%`
+            domStar.style.top = `${((pos.y + 0.5) * TILE_HEIGHT - 52) / HEIGHT * 100}%`
             if (domStar.paused) void domStar.play().catch(() => {})
           } else {
             domStar.style.display = 'none'

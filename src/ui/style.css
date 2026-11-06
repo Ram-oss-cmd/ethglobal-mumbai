@@ -28,12 +28,12 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 }
 
 .cabinet {
-  width: min(calc(100% - 24px), 1080px, max(380px, calc((100svh - 152px) * 23 / 19)));
+  width: min(calc(100% - 24px), 1160px, max(380px, calc((100svh - 152px) * 1380 / 1026)));
   margin: 0 auto;
   padding: 16px 0 12px;
 }
 
-.cabinet-live { width: min(calc(100% - 24px), 1280px); }
+.cabinet-live { width: min(calc(100% - 24px), 1440px); }
 
 .arcade-header {
   display: flex;
