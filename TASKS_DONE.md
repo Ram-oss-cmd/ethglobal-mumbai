@@ -26,3 +26,4 @@
 - [x] Scoped prize-seat recovery to the connected wallet and World cancellation to its own challenge. All 14 server and World tests and TypeScript checks passed, including stale authorization, seat theft, and stale cancellation.
 - [x] Kept the practice and casual server available with malformed sponsor configuration. All 12 server tests, lint, and type checks passed, including a diagnostic that omits the invalid secret.
 - [x] Added visible vault feedback and verified that reversing before the threshold keeps points carried. All nine banking tests passed, and the production Edge smoke test observed the threshold flash and return to green.
+- [x] Made Arkiv history fail promptly on a throttled node and use the current Arc explorer for settlement links. Both history tests passed, including a one-hour retry response, along with TypeScript checks.

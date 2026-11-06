@@ -8,7 +8,8 @@ import { Matches, resultLabel } from './schema.ts'
 
 export function createHistoryReader(writerAddress: string, accessKey = '') {
   const writer = getAddress(writerAddress)
-  const client = createPublicClient({ chain: rabdi({ accessKey }), transport: http(undefined, { timeout: 10_000 }) })
+  // A public-node rate limit may advertise a retry delay longer than a user can wait.
+  const client = createPublicClient({ chain: rabdi({ accessKey }), transport: http(undefined, { timeout: 10_000, retryCount: 0 }) })
 
   function query() {
     return client.select({

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { arcTxUrl } from '../arc/chain'
 import type { MatchRecord, Seat } from '../competition/protocol'
 import { Replay } from '../ui/Competition'
 import { createHistoryReader, type HistoryRow } from './reader'
@@ -33,7 +34,10 @@ export default function History({ matchId }: { matchId?: string }) {
     load().then(result => {
       if (!lifetime.signal.aborted) setData(result)
     }, err => {
-      if (!lifetime.signal.aborted) setError(err instanceof Error ? err.message : 'Unable to query Arkiv')
+      if (!lifetime.signal.aborted) {
+        setError(err instanceof Error && /^(Arkiv metadata|The replay|Replay |Multiple archives)/.test(err.message)
+          ? err.message : 'The Rabdi node did not return a usable response. Try again shortly.')
+      }
     })
     return () => lifetime.abort()
   }, [writer, matchId])
@@ -58,7 +62,7 @@ export default function History({ matchId }: { matchId?: string }) {
           <p title={row.playerA.value}>Player A · {row.playerA.value.slice(0, 8)}…{row.playerA.value.slice(-4)}</p>
           <p title={row.playerB.value}>Player B · {row.playerB.value.slice(0, 8)}…{row.playerB.value.slice(-4)}</p>
           {row.settlementTx && /^0x[0-9a-f]{64}$/i.test(row.settlementTx.value) && (
-            <p><a href={`https://testnet.arcscan.app/tx/${row.settlementTx.value}`}>Arc settlement transaction</a></p>
+            <p><a href={arcTxUrl(row.settlementTx.value as `0x${string}`)}>Arc settlement transaction</a></p>
           )}
           {data.record && (
             <div className="match-actions">
