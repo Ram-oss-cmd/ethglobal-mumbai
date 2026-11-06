@@ -36,3 +36,4 @@
 - [x] Combined free and staked rooms under Multiplayer. All 51 app tests, lint, and build passed. Two Edge sessions verified wallet selection, live zero-stake play, seat recovery, and both players accepting a zero counter-offer without opening escrow.
 - [x] Simplified wallet entry and moved Arc recovery into a collapsed lobby section. Edge verified four rounded wallet buttons and the network-specific recovery controls. All 51 app tests, lint, and build passed.
 - [x] Added an Arc Testnet RPC fallback for wallet reads. The rate-limit regression test and all 52 app tests passed. Live reads confirmed the Arc Testnet chain, player balances, and the deployment receipt.
+- [x] Built a four-wallet entry with provider marks, explicit MetaMask sign-in, and sign-out. Edge verified a single column at 390 px, wallet feedback, session restore, and renewed sign-in after clearing site data. Live Arc reads confirmed the selected addresses with 0, 20, and 40 test USDC.

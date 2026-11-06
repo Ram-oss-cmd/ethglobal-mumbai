@@ -12,6 +12,8 @@ export const arc = createPublicClient({
   ], { retryCount: 0 }),
 })
 export const WALLET_ACCOUNT_KEY = 'wallet-rush:wallet-account'
+export const WALLET_SIGN_IN_KEY = 'wallet-rush:signed-in'
+export const PRIZE_SESSION_KEY = 'wallet-rush:prize-session'
 
 export function selectedWalletAccount(addresses: readonly Address[], preferred: string | null | undefined) {
   return addresses.find(address => address.toLowerCase() === preferred) ?? addresses[0]

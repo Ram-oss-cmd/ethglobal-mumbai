@@ -6,9 +6,8 @@ import { WorldGate } from '../world/WorldGate'
 import type { WorldChallenge } from '../world/types.ts'
 import { prizeRequest, type PrizeConfig, type PrizeMember } from './api'
 import DeferredClaim from './DeferredClaim'
-import { arc, checkedWallet, injectedWallet, refundUSDC, switchToArc } from './wallet'
+import { arc, checkedWallet, injectedWallet, PRIZE_SESSION_KEY, refundUSDC, switchToArc } from './wallet'
 
-const STORAGE = 'wallet-rush:prize-session'
 const MATCH_CODE = /^[a-z0-9-]{3,32}$/
 type Session = { wallet: Address; token: string; expires: number }
 type Room = { id: string; initialStakeUnits?: number }
@@ -30,7 +29,7 @@ export default function Multiplayer({ account }: { account: Address }) {
   const [chain, setChain] = useState<number>()
   const [balance, setBalance] = useState<string | null>()
   const [session, setSession] = useState<Session | undefined>(() => {
-    try { return JSON.parse(sessionStorage.getItem(STORAGE) ?? 'null') ?? undefined } catch { return undefined }
+    try { return JSON.parse(sessionStorage.getItem(PRIZE_SESSION_KEY) ?? 'null') ?? undefined } catch { return undefined }
   })
   const [verification, setVerification] = useState<{ challenge: WorldChallenge; session: Session }>()
   const [error, setError] = useState('')
@@ -77,14 +76,14 @@ export default function Multiplayer({ account }: { account: Address }) {
   useEffect(() => {
     if (!session) return
     const timeout = window.setTimeout(() => {
-      sessionStorage.removeItem(STORAGE)
+      sessionStorage.removeItem(PRIZE_SESSION_KEY)
       setSession(undefined)
     }, Math.max(0, session.expires - Date.now()))
     return () => window.clearTimeout(timeout)
   }, [session])
 
   function save(value: Session) {
-    sessionStorage.setItem(STORAGE, JSON.stringify(value))
+    sessionStorage.setItem(PRIZE_SESSION_KEY, JSON.stringify(value))
     setSession(value)
     setVerification(undefined)
   }

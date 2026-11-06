@@ -62,6 +62,8 @@ The starting commit `abefc40` contains a text note. The team's contributions inc
 
 Wallet Rush project files are under the [MIT License](LICENSE). Dependencies such as React, Phaser, viem, IDKit, Arkiv SDK, and OpenZeppelin retain their own licenses and notices.
 
+Wallet marks identify their respective providers. [MetaMask brand kit](https://metamask.com/assets) · [Rabby brand assets](https://github.com/RabbyHub/logo) · [Coinbase Wallet SDK artwork](https://github.com/coinbase/coinbase-wallet-sdk/blob/v4.3.0/packages/wallet-sdk/src/assets/wallet-logo.ts) · [Trust Wallet press kit](https://trustwallet.com/press)
+
 ## Sponsor demo
 
 See [manual setup and architecture](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. Choose a positive stake in **Multiplayer** to enter the funded flow when sponsor settings are configured. Use the [demo script and evidence checklist](docs/demo.md) to record the live flow. The [Arc Studio deployment record](docs/arc-deployment.md) links the verified testnet contract and receipt. The funded sponsor demo and public game URL are pending.
