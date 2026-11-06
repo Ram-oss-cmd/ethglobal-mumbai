@@ -100,14 +100,15 @@ export default function PrizeLobby({ account }: { account: Address }) {
   const onArc = chain === ARC_TESTNET.id
   const eligible = session?.wallet.toLowerCase() === account.toLowerCase()
   const member: PrizeMember | undefined = onArc && eligible && session && config?.enabled && config.escrowAddress
-    ? { address: account, token: session.token, escrow: config.escrowAddress } : undefined
+    ? { address: account, token: session.token, escrow: config.escrowAddress, version: config.escrowVersion ?? '1' } : undefined
   const worldGate = onArc && verification?.session.wallet.toLowerCase() === account.toLowerCase() ? verification : undefined
 
   return (
     <>
       <section className="lobby prize-panel" aria-label="Prize wallet and eligibility">
         <h2>Arc Testnet prize matches</h2>
-        <p>Entry is 10 test USDC per player. Maze points are a separate game score. Prize wallet addresses, match scores and replay inputs are public on Arkiv.</p>
+        <p>{config?.escrowVersion === '2' ? 'Each player stakes the smaller of the two offers, after both confirm.' : 'Entry is 10 test USDC per player.'}
+          {' '}Maze points are a separate game score. Prize wallet addresses, match scores and replay inputs are public on Arkiv.</p>
         {config?.worldEnvironment === 'staging' && <p>World ID staging · simulator proofs are for testing.</p>}
         {config && !config.enabled && <p>Prize rooms await sponsor setup. Casual matches remain available.</p>}
         <div className="match-actions">
@@ -144,7 +145,7 @@ export default function PrizeLobby({ account }: { account: Address }) {
               setRefundHash(undefined)
               setRefundStatus('')
               perform(async () => {
-                const refund = await refundUSDC(account, config.escrowAddress!, matchKeyFor(refundCode), setRefundHash)
+                const refund = await refundUSDC(account, config.escrowAddress!, matchKeyFor(refundCode), setRefundHash, config.escrowVersion)
                 setRefundHash(refund.transactionHash)
                 setRefundStatus(refund.deferredPayouts.length > 0
                   ? 'Timeout processed with deferred payouts' : 'Timeout processed')

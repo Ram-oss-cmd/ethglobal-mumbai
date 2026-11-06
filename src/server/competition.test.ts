@@ -220,7 +220,7 @@ describe('authoritative two-player competition over WebSocket', () => {
     b.send({ type: 'ready' })
     await a.receive('state', state => state.prize?.stage === 'funding')
     expect(prize.open).toHaveBeenCalledOnce()
-    expect(prize.open).toHaveBeenCalledWith('prize-test-room', wallets)
+    expect(prize.open).toHaveBeenCalledWith('prize-test-room', wallets, 10_000_000)
     a.send({ type: 'ready' })
     b.send({ type: 'ready' })
     const blocked = await a.receive('state', state => Boolean(state.prize?.message))
@@ -251,9 +251,68 @@ describe('authoritative two-player competition over WebSocket', () => {
     await advance(10_000)
     const { record } = await a.receive('record')
     expect(record.result.kind).toBe('canceled')
-    expect(prize.complete).toHaveBeenCalledWith(key, record, wallets)
+    expect(prize.complete).toHaveBeenCalledWith(key, record, wallets, 10_000_000)
     const settled = await a.receive('state', state => state.prize?.stage === 'settled')
     expect(settled.prize?.deferredPayouts).toEqual([{ player: wallets[0], amount: '10000000' }])
+  })
+
+  it('prefills a guest stake and opens only after both players confirm the current offer revision', async () => {
+    const wallets = [
+      '0x0000000000000000000000000000000000000001',
+      '0x0000000000000000000000000000000000000002',
+    ] as const
+    const matchId = 'prize-variable'
+    const key = `0x${'2'.repeat(64)}` as const
+    const prize: PrizeCompetition = {
+      variableStake: true,
+      admit: token => token === 'a'.repeat(43) ? wallets[0] : token === 'b'.repeat(43) ? wallets[1] : undefined,
+      open: vi.fn(async () => ({ matchKey: key, transactionHash: key, depositDeadline: 0, refundAfter: 0 })),
+      canStart: vi.fn(async () => true),
+      complete: vi.fn(async () => ({ settlementTx: key })),
+    }
+    runtime.close()
+    runtime = attachCompetition(server, { now: () => now, prize })
+    const a = await connect()
+    a.send({ type: 'join', matchId, prizeToken: 'a'.repeat(43) })
+    await a.receive('joined')
+    a.send({ type: 'stake-offer', stakeUnits: 5_000_000 })
+    await a.receive('state', state => state.prize?.offers?.revision === 1)
+
+    const b = await connect()
+    b.send({ type: 'join', matchId, prizeToken: 'b'.repeat(43) })
+    await b.receive('joined')
+    const prefilled = await b.receive('state', state => state.prize?.offers?.revision === 1)
+    expect(prefilled.prize?.offers?.units).toEqual([5_000_000, 5_000_000])
+    expect(prefilled.seats.map(seat => seat?.ready)).toEqual([false, false])
+    b.send({ type: 'stake-offer', stakeUnits: 10_000_000 })
+    await a.receive('state', state => state.prize?.offers?.revision === 2)
+    a.send({ type: 'confirm-stake', revision: 2 })
+    await b.receive('state', state => state.seats[0]?.ready === true)
+
+    b.send({ type: 'stake-offer', stakeUnits: 7_250_000 })
+    const changed = await a.receive('state', state => state.prize?.offers?.revision === 3)
+    expect(changed.seats.map(seat => seat?.ready)).toEqual([false, false])
+    b.send({ type: 'confirm-stake', revision: 2 })
+    expect((await b.receive('error')).message).toContain('offers changed')
+    b.send({ type: 'ready' })
+    expect((await b.receive('error')).message).toContain('Confirm the current stake')
+    b.send({ type: 'stake-offer', stakeUnits: 100_000_001 })
+    expect((await b.receive('error')).message).toContain('Invalid match message')
+    expect(prize.open).not.toHaveBeenCalled()
+
+    a.send({ type: 'confirm-stake', revision: 3 })
+    b.send({ type: 'confirm-stake', revision: 3 })
+    const funding = await a.receive('state', state => state.prize?.stage === 'funding')
+    expect(funding.prize?.stakeUnits).toBe(5_000_000)
+    expect(prize.open).toHaveBeenCalledExactlyOnceWith(matchId, wallets, 5_000_000)
+    b.send({ type: 'stake-offer', stakeUnits: 9_000_000 })
+    expect((await b.receive('error')).message).toContain('no longer taking stake offers')
+    for (const player of [a, b]) player.send({ type: 'ready' })
+    await a.receive('state', state => state.phase === 'running')
+    expect(prize.canStart).toHaveBeenCalledExactlyOnceWith(key, wallets, 5_000_000)
+    await advance(RUN_MS)
+    const { record } = await a.receive('record')
+    expect(prize.complete).toHaveBeenCalledExactlyOnceWith(key, record, wallets, 5_000_000)
   })
 
   it('pauses both clocks for a live disconnect, resumes the seat, and cancels after cumulative grace', async () => {

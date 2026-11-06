@@ -57,6 +57,26 @@ it('checks the real provider chain and selected account before permitting a wall
   expect(request.mock.calls.some(([call]) => call.method === 'eth_sendTransaction')).toBe(false)
 })
 
+it('blocks variable-stake deposits before allowance or transactions when the chain disagrees', async () => {
+  const account = privateKeyToAccount(generatePrivateKey()).address
+  const escrow = '0x1000000000000000000000000000000000000000'
+  const matchId = matchKeyFor('variable-match')
+  const request = vi.fn(async ({ method }) => {
+    if (method === 'eth_accounts') return [account]
+    if (method === 'eth_chainId') return '0x4cef52'
+    throw new Error('Unexpected wallet call')
+  })
+  stubWallet(request)
+  vi.spyOn(arc, 'getChainId').mockResolvedValue(ARC_TESTNET.id)
+  const read = vi.spyOn(arc, 'readContract').mockResolvedValue(10_000_000)
+  const onHash = vi.fn()
+  await expect(depositUSDC(account, escrow, matchId, onHash, 5_000_000, '2')).rejects.toThrow('differs')
+  expect(read).toHaveBeenCalledOnce()
+  expect(read).toHaveBeenCalledWith(expect.objectContaining({ functionName: 'getStake', args: [matchId] }))
+  expect(request.mock.calls.every(([call]) => call.method !== 'eth_sendTransaction')).toBe(true)
+  expect(onHash).not.toHaveBeenCalled()
+})
+
 it('only confirms a claim when the receipt proves payment to the connected wallet from this escrow', async () => {
   const account = privateKeyToAccount(generatePrivateKey()).address
   const escrow = '0x1000000000000000000000000000000000000000'

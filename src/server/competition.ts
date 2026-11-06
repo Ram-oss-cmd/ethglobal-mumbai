@@ -14,6 +14,7 @@ import {
 } from '../competition/protocol.ts'
 import { buildMatchRecord, decideMatch, verifyMatchRecord } from '../competition/replay.ts'
 import type { PrizeCompetition } from './prizeCompetition.ts'
+import { ENTRY_AMOUNT, validStakeUnits } from '../arc/chain.ts'
 
 const SEATS = [0, 1] as const
 const MATCH_ID = /^[a-z0-9-]{3,32}$/i
@@ -28,6 +29,7 @@ const SNAPSHOT_TICKS = 5
 const INPUT_RATE = 40
 const MESSAGE_BURST = 20
 const MAX_BUFFERED_BYTES = 512 * 1024
+const DEFAULT_STAKE = Number(ENTRY_AMOUNT)
 
 type StateMessage = Extract<ServerMessage, { type: 'state' }>
 type Player = {
@@ -65,6 +67,13 @@ function parseMessage(raw: string): ClientMessage | undefined {
   const message = value as Record<string, unknown>
   const keys = Object.keys(message).length
   if (message.type === 'ready' && keys === 1) return { type: 'ready' }
+  if (message.type === 'stake-offer' && keys === 2 && validStakeUnits(message.stakeUnits)) {
+    return { type: 'stake-offer', stakeUnits: message.stakeUnits }
+  }
+  if (message.type === 'confirm-stake' && keys === 2 && typeof message.revision === 'number' &&
+      Number.isSafeInteger(message.revision) && message.revision >= 0) {
+    return { type: 'confirm-stake', revision: message.revision }
+  }
   if (message.type === 'input' && keys === 2 && DIRECTIONS.includes(message.direction as Direction)) {
     return { type: 'input', direction: message.direction as Direction }
   }
@@ -220,15 +229,16 @@ export function attachCompetition(
     const wallets = prizeWallets(room)
     if (!prize || room.prize?.stage !== 'waiting' || !wallets ||
         !room.seats.every(member => member?.socket && member.ready)) return
-    room.prize.stage = 'opening'
+    const stakeUnits = room.prize.offers ? Math.min(...room.prize.offers.units) : DEFAULT_STAKE
+    room.prize = { stage: 'opening', stakeUnits }
     for (const member of room.seats) if (member) member.ready = false
-    void prize.open(room.id, wallets).then(opened => {
+    void prize.open(room.id, wallets, stakeUnits).then(opened => {
       const { transactionHash, ...details } = opened
-      room.prize = { stage: 'funding', ...details, openTx: transactionHash }
+      room.prize = { stage: 'funding', stakeUnits, ...details, openTx: transactionHash }
       room.settlePrize = (record, time) => {
         room.prize = { ...room.prize, stage: 'settling' }
         publish(room, time)
-        void prize.complete(opened.matchKey, record, wallets).then(result => {
+        void prize.complete(opened.matchKey, record, wallets, stakeUnits).then(result => {
           room.prize = { ...room.prize, ...result, stage: result.settlementTx ? 'settled' : 'error' }
           publish(room, now())
         }).catch(() => {
@@ -243,6 +253,11 @@ export function attachCompetition(
     })
   }
 
+  function resetStakeConfirmations(room: Room) {
+    if (room.prize?.offers) room.prize.offers.revision++
+    for (const member of room.seats) if (member) member.ready = false
+  }
+
   function tryStart(room: Room, time: number) {
     if (room.phase !== 'lobby' || !room.seats.every(member => member?.socket && member.ready)) return
     function start() {
@@ -251,10 +266,11 @@ export function attachCompetition(
     }
     if (!room.prize) return start()
     const wallets = prizeWallets(room)
-    if (!prize || !wallets || !room.prize.matchKey || room.prize.stage !== 'funding' || room.prizeChecking) return
+    if (!prize || !wallets || !room.prize.matchKey || room.prize.stakeUnits === undefined ||
+        room.prize.stage !== 'funding' || room.prizeChecking) return
     room.prizeChecking = true
     const checkedRoom = room.prize
-    void prize.canStart(checkedRoom.matchKey!, wallets).catch(() => false).then(funded => {
+    void prize.canStart(room.prize.matchKey, wallets, room.prize.stakeUnits).catch(() => false).then(funded => {
       room.prizeChecking = false
       if (rooms.get(room.id) !== room || room.phase !== 'lobby' ||
           !room.seats.every(member => member?.socket && member.ready)) return
@@ -289,7 +305,14 @@ export function attachCompetition(
         }
       }
       if (room.seats.every(player => !player)) rooms.delete(room.id)
-      else if (changed) publish(room, time)
+      else if (changed) {
+        if (room.prize?.offers) {
+          const remainingOffer = room.prize.offers.units[room.seats[0] ? 0 : 1]
+          room.prize.offers.units = [remainingOffer, remainingOffer]
+          resetStakeConfirmations(room)
+        }
+        publish(room, time)
+      }
     } else if (room.phase === 'running') {
       runDueTicks(room, time)
     } else if (room.phase === 'paused' && time >= reconnectDeadline(room)) {
@@ -361,7 +384,8 @@ export function attachCompetition(
             target = {
               id: message.matchId, seed: randomBytes(4).readUInt32LE(), createdAt: time, seats: [null, null],
               phase: 'lobby', tick: 0, nextTickAt: 0, lastSnapshotTick: 0,
-              prize: prizeMatch ? { stage: 'waiting' } : undefined,
+              prize: prizeMatch ? { stage: 'waiting', offers: prize?.variableStake
+                ? { units: [DEFAULT_STAKE, DEFAULT_STAKE], revision: 0 } : undefined } : undefined,
             }
             rooms.set(target.id, target)
           }
@@ -400,9 +424,26 @@ export function attachCompetition(
       if (!room || !player) return reject(socket, 'Join a match first.')
       advanceRoom(room, time)
       if (socket.readyState !== WebSocket.OPEN) return
-      if (message.type === 'ready') {
+      if (message.type === 'stake-offer' || message.type === 'confirm-stake') {
+        const offers = room.prize?.offers
+        if (!offers || room.prize?.stage !== 'waiting') return reject(socket, 'This room is no longer taking stake offers.')
+        if (message.type === 'stake-offer') {
+          const seat = room.seats[0] === player ? 0 : 1
+          if (offers.units[seat] === message.stakeUnits) return
+          offers.units[seat] = message.stakeUnits
+          if (!room.seats[seat === 0 ? 1 : 0]) offers.units = [message.stakeUnits, message.stakeUnits]
+          resetStakeConfirmations(room)
+        } else {
+          if (message.revision !== offers.revision) return reject(socket, 'Stake offers changed. Review the new amount and confirm again.')
+          if (!room.seats.every(member => member?.socket)) return reject(socket, 'Wait for the other player before confirming the stake.')
+          player.ready = true
+          preparePrize(room)
+        }
+        publish(room, time)
+      } else if (message.type === 'ready') {
         if (room.phase !== 'lobby' || player.ready) return
         if (room.prize?.stage === 'waiting') {
+          if (room.prize.offers) return reject(socket, 'Confirm the current stake offer first.')
           player.ready = true
           preparePrize(room)
           publish(room, time)
@@ -412,7 +453,7 @@ export function attachCompetition(
         player.ready = true
         tryStart(room, time)
         publish(room, time)
-      } else if (room.phase === 'running' && isContending(player) && player.run.respawnAtMs === 0) {
+      } else if (message.type === 'input' && room.phase === 'running' && isContending(player) && player.run.respawnAtMs === 0) {
         // Only the latest intent per seat is applied on the next server tick.
         player.pending = message.direction
       }

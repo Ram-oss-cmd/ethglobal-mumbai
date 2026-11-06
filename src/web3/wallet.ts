@@ -2,7 +2,7 @@ import {
   createPublicClient, createWalletClient, custom, erc20Abi, getAddress, http,
   isAddressEqual, numberToHex, parseEventLogs, type Address, type EIP1193Provider, type Hex,
 } from 'viem'
-import { ARC_TESTNET, ARC_USDC, ENTRY_AMOUNT, ESCROW_ABI, readDeferredPayouts } from '../arc/chain.ts'
+import { ARC_TESTNET, ARC_USDC, ENTRY_AMOUNT, ESCROW_ABI, type EscrowVersion, MATCHED_STAKE_ABI, readDeferredPayouts, validStakeUnits } from '../arc/chain.ts'
 
 export const arc = createPublicClient({ chain: ARC_TESTNET, transport: http(undefined, { timeout: 10_000 }) })
 
@@ -41,13 +41,19 @@ export async function checkedWallet(account: Address) {
   return client
 }
 
-export async function depositUSDC(account: Address, escrow: Address, matchKey: Hex, onHash: (hash: Hex) => void) {
+export async function depositUSDC(account: Address, escrow: Address, matchKey: Hex, onHash: (hash: Hex) => void,
+  stakeUnits = Number(ENTRY_AMOUNT), version: EscrowVersion = '1') {
   if (await arc.getChainId() !== ARC_TESTNET.id) throw new Error('Unexpected Arc RPC chain.')
   const client = await checkedWallet(account)
+  const escrowStake = version === '2'
+    ? await arc.readContract({ address: escrow, abi: MATCHED_STAKE_ABI, functionName: 'getStake', args: [matchKey] })
+    : Number(ENTRY_AMOUNT)
+  if (!validStakeUnits(stakeUnits) || escrowStake !== stakeUnits) throw new Error('Arc escrow stake differs from the confirmed offer.')
+  const amount = BigInt(stakeUnits)
   const allowance = await arc.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: 'allowance', args: [account, escrow] })
-  if (allowance < ENTRY_AMOUNT) {
+  if (allowance < amount) {
     const { request } = await arc.simulateContract({
-      account, address: ARC_USDC, abi: erc20Abi, functionName: 'approve', args: [escrow, ENTRY_AMOUNT],
+      account, address: ARC_USDC, abi: erc20Abi, functionName: 'approve', args: [escrow, amount],
     })
     const hash = await client.writeContract(request)
     onHash(hash)
@@ -65,14 +71,18 @@ export async function depositUSDC(account: Address, escrow: Address, matchKey: H
     logs: receipt.logs.filter(log => isAddressEqual(log.address, escrow)),
   })
   if (receipt.status !== 'success' || !deposits.some(({ args }) =>
-    args.matchId === matchKey && isAddressEqual(args.player, account) && args.amount === ENTRY_AMOUNT
+    args.matchId === matchKey && isAddressEqual(args.player, account) && args.amount === amount
   )) throw new Error('Arc receipt did not confirm this wallet’s deposit for the match.')
   return receipt.transactionHash
 }
 
-export async function refundUSDC(account: Address, escrow: Address, matchKey: Hex, onHash: (hash: Hex) => void) {
+export async function refundUSDC(account: Address, escrow: Address, matchKey: Hex, onHash: (hash: Hex) => void, version: EscrowVersion = '1') {
   if (await arc.getChainId() !== ARC_TESTNET.id) throw new Error('Unexpected Arc RPC chain.')
   const client = await checkedWallet(account)
+  const stakeUnits = version === '2'
+    ? await arc.readContract({ address: escrow, abi: MATCHED_STAKE_ABI, functionName: 'getStake', args: [matchKey] })
+    : Number(ENTRY_AMOUNT)
+  if (!validStakeUnits(stakeUnits)) throw new Error('Arc escrow did not return a valid stake for this match.')
   const { request } = await arc.simulateContract({
     account: getAddress(account), address: escrow, abi: ESCROW_ABI, functionName: 'refundExpired', args: [matchKey],
   })
@@ -83,7 +93,7 @@ export async function refundUSDC(account: Address, escrow: Address, matchKey: He
     logs: receipt.logs.filter(log => isAddressEqual(log.address, escrow)),
   })
   // Anyone may trigger the timeout, but only participants with deposits receive a refund.
-  if (receipt.status !== 'success' || !refunds.some(({ args }) => args.matchId === matchKey && args.amount === ENTRY_AMOUNT)) {
+  if (receipt.status !== 'success' || !refunds.some(({ args }) => args.matchId === matchKey && args.amount === BigInt(stakeUnits))) {
     throw new Error('Arc receipt did not confirm a deposit refund for this match.')
   }
   return { transactionHash: receipt.transactionHash, deferredPayouts: readDeferredPayouts(receipt.logs, escrow, matchKey) }

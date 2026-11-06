@@ -63,28 +63,32 @@ export function createPrize() {
   const scope = JSON.stringify([world?.environment, process.env.WORLD_APP_ID, process.env.WORLD_RP_ID, process.env.WORLD_ACTION])
 
   const competition: PrizeCompetition | undefined = enabled && world && escrow && history ? {
+    variableStake: escrow.version === '2',
     admit(token) {
       const wallet = auth.wallet(token)
       if (!wallet) return
       try { return world.eligible(wallet) ? wallet : undefined } catch { return }
     },
-    async open(matchId, wallets) {
+    async open(matchId, wallets, stakeUnits) {
+      try { await escrow.verifyDeployment() } catch {
+        throw new Error('Arc escrow configuration could not be verified. Check the deployment, version, and referee.')
+      }
       reservePrizeEntry(ledger, scope, matchId, wallets)
       try {
-        return await escrow.openMatch(matchId, wallets)
+        return await escrow.openMatch(matchId, wallets, stakeUnits)
       } catch {
         throw new Error('Arc escrow could not be confirmed. Ask the organizer to inspect the match before retrying.')
       }
     },
     canStart: escrow.canStart,
-    async complete(matchKey, record, wallets) {
+    async complete(matchKey, record, wallets, stakeUnits) {
       let settlementTx: Hex | undefined
       let deferredPayouts: DeferredPayout[] | undefined
       let historyKey: string | undefined
       let archiveTx: Hex | undefined
       const errors: string[] = []
       try {
-        const settlement = await escrow.settle(matchKey, record, wallets)
+        const settlement = await escrow.settle(matchKey, record, wallets, stakeUnits)
         settlementTx = settlement.transactionHash
         deferredPayouts = settlement.deferredPayouts
       } catch {
@@ -109,7 +113,7 @@ export function createPrize() {
       res.end(JSON.stringify(payload))
     }
     if (pathname === API + 'config' && req.method === 'GET') {
-      return reply(200, { enabled, worldEnvironment: world?.environment, escrowAddress: escrow?.address })
+      return reply(200, { enabled, worldEnvironment: world?.environment, escrowAddress: escrow?.address, escrowVersion: escrow?.version })
     }
     if (req.method !== 'POST' || !allowedOrigin(req, process.env.WALLET_RUSH_ORIGIN)) {
       return reply(403, { error: 'Open the game from the configured origin.' })

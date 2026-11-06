@@ -32,3 +32,10 @@ The historical version 1 source remains byte-for-byte identical to the reviewed 
 The [version 2 source](../contracts/WalletRushEscrow.sol) uses a fixed stake **per match**, stored when the referee opens the room. Each player deposits that exact amount. The winner receives both deposits. A draw, cancellation, or eligible timeout returns the applicable deposits. Stakes use six USDC decimals and range from 1 to 100 test USDC per player. The EIP-712 domain version is `2`. The Result fields are unchanged and the signature remains bound to the contract, chain, and match ID.
 
 121 local Foundry tests passed, including conservation across independently priced matches. A version 2 Studio deployment is pending.
+
+1. In Arc Studio, open the Wallet Rush workspace in **Smart Contract** mode. Add the [version 2 source](../contracts/WalletRushEscrow.sol) and its [tests](../contracts/test) to the workspace. Ask Studio to compile that exact source and run the tests with Solidity 0.8.28 and OpenZeppelin 5.6.1. Keep the existing deployment record.
+2. In **Smart Contract** mode, deploy the reviewed version 2 build on **Arc Testnet** with the same public referee address. Save the new contract address, successful transaction link, and Studio project link. Check that the **Contracts** panel shows domain version `2`, a 1 USDC minimum and a 100 USDC maximum.
+3. In **Build** mode, connect the Studio demo to the new escrow. Update the demo opening call to supply the sixth `openMatch` argument in six-decimal USDC units. Use the same `Result` fields and EIP-712 domain version `2` for test signatures.
+4. In the game's local `.env`, set `ARC_ESCROW_ADDRESS` to the new address, set `ARC_ESCROW_VERSION=2`, and restart `npm run dev`. A room starts with a 10 test USDC offer. The creator can update it before sharing the invite. The guest gets that amount prefilled and may edit it. Both must confirm the smaller offer before the app opens escrow.
+
+Version 1 remains the default. To recover deposits or claims on the previous deployment after switching, temporarily run the app against its recorded address with `ARC_ESCROW_VERSION=1`.

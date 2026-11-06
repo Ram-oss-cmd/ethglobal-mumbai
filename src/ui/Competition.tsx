@@ -216,7 +216,9 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
         </section>
       )}
       {prize && join && <PrizeFunding member={prize} prize={snapshot?.prize} seat={seat} ready={Boolean(own?.ready)}
-        matchId={matchId} result={result} onReady={() => send({ type: 'ready' })} />}
+        matchId={matchId} result={result} opponentConnected={Boolean(opponent?.connected)}
+        onOffer={stakeUnits => send({ type: 'stake-offer', stakeUnits })}
+        onConfirm={revision => send({ type: 'confirm-stake', revision })} onReady={() => send({ type: 'ready' })} />}
       {record && replay !== null ? (
         <Replay key={replay} record={record} seat={replay} leave={() => setReplay(null)} />
       ) : (

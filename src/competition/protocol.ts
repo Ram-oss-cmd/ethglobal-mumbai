@@ -11,6 +11,8 @@ export type RunView = Pick<GameState,
 export type ClientMessage =
   | { type: 'join'; matchId: string; resumeToken?: string; prizeToken?: string }
   | { type: 'ready' }
+  | { type: 'stake-offer'; stakeUnits: number }
+  | { type: 'confirm-stake'; revision: number }
   | { type: 'input'; direction: Direction }
 
 export type Outcome = 'win' | 'loss' | 'draw' | 'canceled'
@@ -43,6 +45,8 @@ export interface MatchRecord {
 
 export interface PrizeState {
   stage: 'waiting' | 'opening' | 'funding' | 'settling' | 'settled' | 'error'
+  offers?: { units: [number, number]; revision: number }
+  stakeUnits?: number
   matchKey?: `0x${string}`
   openTx?: `0x${string}`
   settlementTx?: `0x${string}`

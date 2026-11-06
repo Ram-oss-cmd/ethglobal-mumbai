@@ -13,8 +13,23 @@ export const ARC_TESTNET = defineChain({
 export const ARC_USDC = '0x3600000000000000000000000000000000000000'
 export const USDC_DECIMALS = 6
 export const ENTRY_AMOUNT = 10_000_000n
+export const MIN_STAKE_UNITS = 1_000_000
+export const MAX_STAKE_UNITS = 100_000_000
+export type EscrowVersion = '1' | '2'
+
+export function validStakeUnits(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= MIN_STAKE_UNITS && value <= MAX_STAKE_UNITS
+}
+
+export const MATCHED_STAKE_ABI = parseAbi([
+  'function openMatch(bytes32 matchId, address playerA, address playerB, uint64 depositDeadline, uint64 refundAfter, uint32 stake)',
+  'function getStake(bytes32 matchId) view returns (uint32)',
+])
 
 export const ESCROW_ABI = parseAbi([
+  'function REFEREE() view returns (address)',
+  'function USDC() view returns (address)',
+  'function eip712Domain() view returns (bytes1 fields, string name, string version, uint256 chainId, address verifyingContract, bytes32 salt, uint256[] extensions)',
   'function openMatch(bytes32 matchId, address playerA, address playerB, uint64 depositDeadline, uint64 refundAfter)',
   'function deposit(bytes32 matchId)',
   'function settle(bytes32 matchId, uint8 outcome, uint32 scoreA, uint32 scoreB, uint64 validUntil, bytes32 replayDigest, bytes signature)',
