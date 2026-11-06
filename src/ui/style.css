@@ -159,7 +159,7 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
   .wallet-choice { transition: none; }
   .wallet-choice:hover { transform: none; }
 }
-.wallet-menu { position: relative; margin-left: auto; }
+.wallet-menu { position: absolute; top: 16px; right: 12px; z-index: 10; }
 .wallet-menu > summary {
   display: flex;
   align-items: center;
@@ -218,6 +218,9 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 .match-options input { margin: 0; accent-color: var(--yellow); }
 .match-options small { margin-left: auto; color: #c5bcb0; }
 .entry-refresh { margin-bottom: 8px; font-size: .8rem; }
+@media (max-width: 800px) {
+  .arcade-header { padding-top: 42px; }
+}
 @media (max-width: 480px) {
   .mode-switch { gap: 5px; }
   .mode-switch button { padding-inline: 7px; font-size: .8rem; }

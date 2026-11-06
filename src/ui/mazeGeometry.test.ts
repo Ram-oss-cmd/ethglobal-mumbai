@@ -62,8 +62,8 @@ describe('maze geometry', () => {
     }
   })
 
-  it('clears the dog art on every legal player lane and marks each blocked step', () => {
-    // The four PNG poses extend at most 39% horizontally and 44% vertically from center.
+  it('leaves clearance around legal player centerlines and marks each blocked step', () => {
+    // Measure the base footprint. The renderer can enlarge artwork beyond these lanes.
     const halfX = Math.ceil(board.playerSize * .39) + 3
     const halfY = Math.ceil(board.playerSize * .44) + 3
     for (const tile of publicTiles) {
@@ -86,7 +86,7 @@ describe('maze geometry', () => {
     }
   })
 
-  it('clears the full ghost sprite on legal routes, including both tiles of the house gate', () => {
+  it('leaves clearance around ghost centerlines, including both tiles of the house gate', () => {
     const cells = MAZE.join('')
     const half = GHOST_SIZE / 2 + 3
     for (let tile = 0; tile < cells.length; tile++) {

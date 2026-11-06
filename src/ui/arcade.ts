@@ -139,7 +139,8 @@ function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObje
   }
 }
 
-function actor(scene: Phaser.Scene, texture: string, WIDTH: number, TILE_HEIGHT: number, size = GHOST_SIZE, mirror = true) {
+function actor(scene: Phaser.Scene, texture: string, WIDTH: number, TILE_HEIGHT: number, baseSize = GHOST_SIZE, mirror = true) {
+  const size = baseSize * 2
   const image = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   const wrap = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   return (position: GameState['player'], nextTexture: string, alpha = 1) => {
