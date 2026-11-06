@@ -4,8 +4,8 @@ export const ARC_TESTNET = defineChain({
   id: 5042002,
   name: 'Arc Testnet',
   nativeCurrency: { name: 'Test USDC', symbol: 'USDC', decimals: 18 },
-  rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } },
-  blockExplorers: { default: { name: 'ArcScan', url: 'https://testnet.arcscan.app' } },
+  rpcUrls: { default: { http: ['https://rpc.testnet.arc.io'] } },
+  blockExplorers: { default: { name: 'Arc Testnet Explorer', url: 'https://explorer.testnet.arc.io' } },
   testnet: true,
 })
 
@@ -22,6 +22,8 @@ export const ESCROW_ABI = parseAbi([
   'function claim()',
   'function claimable(address player) view returns (uint256)',
   'function getMatch(bytes32 matchId) view returns (address playerA, address playerB, uint64 depositDeadline, uint64 refundAfter, bool depositedA, bool depositedB, bool finalized)',
+  'event Deposited(bytes32 indexed matchId, address indexed player, uint256 amount)',
+  'event Refunded(bytes32 indexed matchId, address indexed player, uint256 amount)',
   'event Settled(bytes32 indexed matchId, uint8 outcome, bytes32 replayDigest)',
   'event PayoutDeferred(bytes32 indexed matchId, address indexed player, uint256 amount)',
   'event Claimed(address indexed player, uint256 amount)',

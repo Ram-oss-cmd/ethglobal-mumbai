@@ -52,8 +52,14 @@ export async function depositUSDC(account: Address, escrow: Address, matchKey: H
   })
   const hash = await (await checkedWallet(account)).writeContract(request)
   onHash(hash)
-  if ((await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })).status !== 'success') throw new Error('Deposit reverted.')
-  return hash
+  const receipt = await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })
+  const deposits = parseEventLogs({ abi: ESCROW_ABI, eventName: 'Deposited',
+    logs: receipt.logs.filter(log => isAddressEqual(log.address, escrow)),
+  })
+  if (receipt.status !== 'success' || !deposits.some(({ args }) =>
+    args.matchId === matchKey && isAddressEqual(args.player, account) && args.amount === ENTRY_AMOUNT
+  )) throw new Error('Arc receipt did not confirm this wallet’s deposit for the match.')
+  return receipt.transactionHash
 }
 
 export async function refundUSDC(account: Address, escrow: Address, matchKey: Hex, onHash: (hash: Hex) => void) {
@@ -65,7 +71,13 @@ export async function refundUSDC(account: Address, escrow: Address, matchKey: He
   const hash = await client.writeContract(request)
   onHash(hash)
   const receipt = await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })
-  if (receipt.status !== 'success') throw new Error('Refund reverted.')
+  const refunds = parseEventLogs({ abi: ESCROW_ABI, eventName: 'Refunded',
+    logs: receipt.logs.filter(log => isAddressEqual(log.address, escrow)),
+  })
+  // Anyone may trigger the timeout, but only participants with deposits receive a refund.
+  if (receipt.status !== 'success' || !refunds.some(({ args }) => args.matchId === matchKey && args.amount === ENTRY_AMOUNT)) {
+    throw new Error('Arc receipt did not confirm a deposit refund for this match.')
+  }
   return { transactionHash: receipt.transactionHash, deferredPayouts: readDeferredPayouts(receipt.logs, escrow, matchKey) }
 }
 

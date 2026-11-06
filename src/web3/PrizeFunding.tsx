@@ -11,6 +11,7 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
   const [funded, setFunded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hash, setHash] = useState<Hex>()
+  const [depositReceipt, setDepositReceipt] = useState<Hex>()
   const [error, setError] = useState('')
   const matchKey = prize?.matchKey
 
@@ -34,7 +35,7 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
     setBusy(true)
     setError('')
     void depositUSDC(member.address, member.escrow, matchKey, setHash)
-      .then(() => setFunded(true))
+      .then(receipt => { setDepositReceipt(receipt); setFunded(true) })
       .catch(failure => setError(failure instanceof Error ? failure.message.split('\n')[0] : 'Deposit failed.'))
       .finally(() => setBusy(false))
   }
@@ -53,9 +54,13 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
             : <button type="button" disabled={busy} onClick={deposit}>{busy ? 'Confirming on Arc…' : 'Deposit 10 test USDC'}</button>}
         </div>
       )}
+      {prize?.stage === 'funding' && prize.depositDeadline && (
+        <p>Deposit deadline {new Date(prize.depositDeadline * 1000).toLocaleTimeString()} local time.</p>
+      )}
       {prize?.stage === 'settling' && <p role="status">Verifying testnet settlement and publishing the replay…</p>}
       {prize?.openTx && <a href={arcTxUrl(prize.openTx)}>Arc escrow receipt</a>}
-      {hash && <a href={arcTxUrl(hash)}>{funded ? 'Arc deposit receipt' : 'Submitted Arc transaction'}</a>}
+      {depositReceipt ? <a href={arcTxUrl(depositReceipt)}>Arc deposit receipt</a>
+        : hash && <a href={arcTxUrl(hash)}>Submitted Arc transaction</a>}
       {prize?.settlementTx && <a href={arcTxUrl(prize.settlementTx)}>Arc settlement receipt</a>}
       {prize?.deferredPayouts?.map(({ player, amount }) => (
         <p key={player} role="status">{formatUnits(BigInt(amount), USDC_DECIMALS)} test USDC was deferred for
