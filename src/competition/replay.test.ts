@@ -5,21 +5,28 @@ import { replayRun } from './run'
 import { LEGACY_ENGINE_VERSION, type MatchRecord } from './protocol'
 
 describe('deterministic match verification', () => {
-  it('verifies an unchanged version 5 record against the original maze', () => {
-    const base = { matchId: 'legacy-board', seed: 19, engineVersion: LEGACY_ENGINE_VERSION, ticks: 70,
+  it.each([
+    [LEGACY_ENGINE_VERSION, 'legacy', 'legacy-board',
+      '9c0a94396ba4d9e8f83294263b7f7ffc9ca551bbda8226c859765338b2916ad5',
+      'c1e86cd75c774b0d73b1c2f78b5d25955d54ad2e22c66e9ed088c4a8537b2793'],
+    ['wallet-rush-6', 'symmetric', 'symmetric-board',
+      '87ea5acf6b9f07d46000101b0c3160e7556c09a99d31cf4a8c9ba88261e7477a',
+      '7a39a7978e33eb3b057e5736c2d4d7693c14b25213a05f8a59e148b44dc9dec7'],
+  ] as const)('verifies an unchanged %s record against its original maze', (engineVersion, layout, matchId, first, second) => {
+    const base = { matchId, seed: 19, engineVersion, ticks: 70,
       status: 'playing', outcome: 'canceled' } as const
     const record: MatchRecord = {
       matchId: base.matchId, result: { kind: 'canceled', reason: 'disconnect', refundEligible: true },
       runs: [{
         ...base, deaths: [], playerId: 'a', alternateLayout: false, inputs: [{ tick: 1, direction: 'down' }],
         banking: [{ tick: 59, banked: 3 }], finalBanked: 3,
-        digest: '9c0a94396ba4d9e8f83294263b7f7ffc9ca551bbda8226c859765338b2916ad5',
+        digest: first,
       }, {
         ...base, deaths: [], playerId: 'b', alternateLayout: true, inputs: [], banking: [], finalBanked: 0,
-        digest: 'c1e86cd75c774b0d73b1c2f78b5d25955d54ad2e22c66e9ed088c4a8537b2793',
+        digest: second,
       }],
     }
-    expect(verifyMatchRecord(record).map(state => [state.legacy, state.banked])).toEqual([[true, 3], [true, 0]])
+    expect(verifyMatchRecord(record).map(state => [state.layout, state.banked])).toEqual([[layout, 3], [layout, 0]])
   })
 
   it('uses verified full-clear times and treats identical times as a draw', () => {

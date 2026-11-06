@@ -4,7 +4,7 @@ import {
 } from './coins.ts'
 import { createGhosts, type Ghost, moveGhosts, touchesPlayer } from './ghosts.ts'
 import {
-  CURRENT_MAZE, type Direction, LEGACY_MAZE, OPPOSITE,
+  type Direction, MAZES, type MazeId, OPPOSITE,
 } from './maze.ts'
 import { type Actor, createActor, moveActor, occupiedTile, reverseActor } from './movement.ts'
 
@@ -23,7 +23,7 @@ const POWER_DURATION_MS = 7_000
 export type RunStatus = 'playing' | 'timeout' | 'out-of-lives' | 'full-clear'
 
 export interface GameState extends CoinState {
-  legacy: boolean
+  layout: MazeId
   elapsedMs: number
   lives: number
   status: RunStatus
@@ -38,11 +38,11 @@ export interface GameState extends CoinState {
   waveMs: number
 }
 
-export function createGame(seed: number, alternateLayout = false, legacy = false): GameState {
-  const maze = legacy ? LEGACY_MAZE : CURRENT_MAZE
+export function createGame(seed: number, alternateLayout = false, layout: MazeId = 'classic'): GameState {
+  const maze = MAZES[layout]
   return {
     ...createCoins(seed, alternateLayout, maze),
-    legacy,
+    layout,
     elapsedMs: 0,
     lives: 3,
     status: 'playing',
@@ -60,7 +60,7 @@ export function createGame(seed: number, alternateLayout = false, legacy = false
 
 export function loseLife(state: GameState) {
   state.lives--
-  scheduleLostDots(state, state.elapsedMs, TICK_MS, state.legacy ? LEGACY_MAZE : CURRENT_MAZE)
+  scheduleLostDots(state, state.elapsedMs, TICK_MS, MAZES[state.layout])
   state.requestedDirection = null
   state.respawnAtMs = Math.min(RUN_MS, state.elapsedMs + DEATH_PAUSE_MS)
 }
@@ -69,11 +69,11 @@ function finishTick(state: GameState) {
   if (state.status === 'playing' && state.elapsedMs === RUN_MS) state.status = 'timeout'
   if (state.queuedDots.length === 0) return
   const occupied = state.status === 'playing' ? [occupiedTile(state.player), ...state.ghosts.map(occupiedTile)] : []
-  releaseDots(state, state.elapsedMs, occupied, state.legacy ? LEGACY_MAZE : CURRENT_MAZE)
+  releaseDots(state, state.elapsedMs, occupied, MAZES[state.layout])
 }
 
 export function stepGame(state: GameState, input?: Direction) {
-  const maze = state.legacy ? LEGACY_MAZE : CURRENT_MAZE
+  const maze = MAZES[state.layout]
   if (state.status !== 'playing') {
     if (state.queuedDots.length > 0) {
       state.terminalRespawnMs += TICK_MS

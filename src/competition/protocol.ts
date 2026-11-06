@@ -1,9 +1,15 @@
 import type { Direction, GameState } from '../game/index.ts'
+import type { MazeId } from '../game/maze.ts'
 import type { DeferredPayout } from '../arc/chain.ts'
 
-export const ENGINE_VERSION = 'wallet-rush-6'
+export const ENGINE_VERSION = 'wallet-rush-7'
 export const LEGACY_ENGINE_VERSION = 'wallet-rush-5'
-export type EngineVersion = typeof ENGINE_VERSION | typeof LEGACY_ENGINE_VERSION
+export const ENGINE_LAYOUTS = {
+  [ENGINE_VERSION]: 'classic',
+  'wallet-rush-6': 'symmetric',
+  [LEGACY_ENGINE_VERSION]: 'legacy',
+} as const satisfies Record<string, MazeId>
+export type EngineVersion = keyof typeof ENGINE_LAYOUTS
 export const MATCH_SOCKET_PATH = '/ws'
 export type Seat = 0 | 1
 export type RunView = Pick<GameState,

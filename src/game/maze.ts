@@ -20,7 +20,7 @@ const legacyRows = [
   '#######################',
 ] as const
 
-const rows = [
+const symmetricRows = [
   '#################################',
   '#.oo.........................oo.#',
   '#.###.####.#####.#####.####.###.#',
@@ -44,6 +44,42 @@ const rows = [
   '################.################',
   '################V################',
   '#################################',
+] as const
+
+const classicRows = [
+  '############################',
+  '#............##............#',
+  '#.####.#####.##.#####.####.#',
+  '#o####.#####.##.#####.####o#',
+  '#o####.#####.##.#####.####o#',
+  '#..........................#',
+  '#.####.##.########.##.####.#',
+  '#.####.##.########.##.####.#',
+  '#......##....##....##......#',
+  '######.#####.##.#####.######',
+  '######.#####.##.#####.######',
+  '######.##..........##.######',
+  '######.##.###DD###.##.######',
+  '######.##.#GGGGGG#.##.######',
+  ' .........#GGGGGG#......... ',
+  '######.##.#GGGGGG#.##.######',
+  '######.##.########.##.######',
+  '######.##..........##.######',
+  '######.##.########.##.######',
+  '######.##.########.##.######',
+  '#............##............#',
+  '#.####.#####.##.#####.####.#',
+  '#o####.#####.##.#####.####o#',
+  '#o..##................##..o#',
+  '###.##.##.########.##.##.###',
+  '###.##.##.########.##.##.###',
+  '#......##....##....##......#',
+  '#.##########P##.##########.#',
+  '#.##########.##.##########.#',
+  '#..........................#',
+  '############.###############',
+  '############V###############',
+  '############################',
 ] as const
 
 export type Direction = 'up' | 'left' | 'down' | 'right'
@@ -76,7 +112,7 @@ function createMaze(rows: readonly string[]) {
   }
 
   function inGhostHouse(tile: number) {
-    return tiles[tile] === 'G' || tile === door
+    return tiles[tile] === 'G' || tiles[tile] === 'D'
   }
 
   function nextTile(tile: number, direction: Direction, allowVault = false) {
@@ -89,8 +125,8 @@ function createMaze(rows: readonly string[]) {
     if (!cell || cell === '#' || (!allowVault && cell === 'V')) return null
     const destination = nextY * width + nextX
     if (inGhostHouse(tile) !== inGhostHouse(destination) &&
-        (allowVault || Math.min(tile, destination) !== door - width ||
-         Math.max(tile, destination) !== door)) return null
+        (allowVault || tiles[Math.max(tile, destination)] !== 'D' ||
+         Math.abs(tile - destination) !== width)) return null
     return destination
   }
 
@@ -101,8 +137,14 @@ function createMaze(rows: readonly string[]) {
 }
 
 export const PELLET_COUNT = 4
-export const CURRENT_MAZE = createMaze(rows)
-export const LEGACY_MAZE = createMaze(legacyRows)
+export const MAZES = {
+  classic: createMaze(classicRows),
+  symmetric: createMaze(symmetricRows),
+  legacy: createMaze(legacyRows),
+}
+export type MazeId = keyof typeof MAZES
+export const CURRENT_MAZE = MAZES.classic
+export const LEGACY_MAZE = MAZES.legacy
 export type Maze = ReturnType<typeof createMaze>
 export const {
   rows: MAZE, width: WIDTH, start: START_TILE, home: HOME_TILE, vaultTile: VAULT_TILE, vault: VAULT,

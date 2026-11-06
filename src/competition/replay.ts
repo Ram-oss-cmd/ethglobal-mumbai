@@ -1,6 +1,6 @@
 import { sha256, stringToHex } from 'viem'
 import type { GameState } from '../game/index.ts'
-import { ENGINE_VERSION, LEGACY_ENGINE_VERSION, type EngineVersion, type MatchRecord, type MatchResult, type Outcome, type RunRecord, type Seat } from './protocol.ts'
+import { ENGINE_LAYOUTS, ENGINE_VERSION, type EngineVersion, type MatchRecord, type MatchResult, type Outcome, type RunRecord, type Seat } from './protocol.ts'
 import { replayRun } from './run.ts'
 
 // Replay records are JSON. Compare their values independently of property order.
@@ -92,7 +92,7 @@ export function verifyMatchRecord(record: MatchRecord) {
   if (!Array.isArray(record?.runs) || record.runs.length !== 2) throw new Error('Expected two replay runs')
   const [first, second] = record.runs
   const version = first?.engineVersion
-  if ((version !== ENGINE_VERSION && version !== LEGACY_ENGINE_VERSION) || second?.engineVersion !== version) {
+  if (!Object.hasOwn(ENGINE_LAYOUTS, version) || second?.engineVersion !== version) {
     throw new Error('Replay uses a different game engine version')
   }
   const replay = reconstruct(

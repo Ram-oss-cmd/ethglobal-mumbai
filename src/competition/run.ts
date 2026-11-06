@@ -1,6 +1,6 @@
 import { createGame, type GameState, RUN_MS, stepGame, TICK_MS } from '../game/index.ts'
 import { DIRECTIONS } from '../game/maze.ts'
-import { LEGACY_ENGINE_VERSION, type EngineVersion, type RunRecord } from './protocol.ts'
+import { ENGINE_LAYOUTS, ENGINE_VERSION, type EngineVersion, type RunRecord } from './protocol.ts'
 
 export function replayRun(
   seed: number,
@@ -8,7 +8,7 @@ export function replayRun(
   ticks: number,
   onTick?: (state: GameState, tick: number) => void,
   alternateLayout = false,
-  version?: EngineVersion,
+  version: EngineVersion = ENGINE_VERSION,
 ) {
   if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff ||
       !Number.isInteger(ticks) || ticks < 0 || ticks > RUN_MS / TICK_MS ||
@@ -20,7 +20,7 @@ export function replayRun(
     previous = input.tick
   }
 
-  const state = createGame(seed, alternateLayout, version === LEGACY_ENGINE_VERSION)
+  const state = createGame(seed, alternateLayout, ENGINE_LAYOUTS[version])
   let index = 0
   onTick?.(state, 0)
   for (let tick = 1; tick <= ticks; tick++) {

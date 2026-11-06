@@ -5,9 +5,9 @@ import { createActor } from './movement'
 
 describe('maze and movement', () => {
   it('connects public floor tiles, excludes the ghost room, and gives the vault one entrance', () => {
-    expect(MAZE).toHaveLength(23)
-    expect(WIDTH).toBe(33)
-    expect(MAZE.every(row => row.length === WIDTH && [...row].reverse().join('') === row)).toBe(true)
+    expect(MAZE).toHaveLength(33)
+    expect(WIDTH).toBe(28)
+    expect(MAZE.every(row => row.length === WIDTH)).toBe(true)
     const reached = new Set([START_TILE])
     for (const tile of reached) {
       for (const direction of DIRECTIONS) {
@@ -22,8 +22,8 @@ describe('maze and movement', () => {
     expect(nextTile(door - WIDTH, 'down', true)).toBeNull()
     expect(nextTile(door - WIDTH, 'down')).toBe(door)
     expect(nextTile(door, 'down')).toBe(HOME_TILE)
-    expect(nextTile(HOME_TILE - 3, 'right')).toBeNull()
-    expect(nextTile(HOME_TILE + 3, 'left')).toBeNull()
+    expect(nextTile(HOME_TILE + WIDTH - 4, 'right')).toBeNull()
+    expect(nextTile(HOME_TILE + WIDTH + 5, 'left')).toBeNull()
     expect(DIRECTIONS.map(direction => nextTile(VAULT_TILE, direction, true))).toEqual([
       VAULT_TILE - WIDTH, null, null, null,
     ])
@@ -33,16 +33,16 @@ describe('maze and movement', () => {
   it('buffers a corner turn without diagonals or clipping the inner wall', () => {
     const state = createGame(1)
     const start = point(START_TILE)
-    stepGame(state, 'up')
+    stepGame(state, 'down')
     stepGame(state, 'right')
     expect(state.player.x).toBe(start.x)
-    expect(state.player.y).toBeCloseTo(start.y - .12)
-    for (let i = 0; i < 14; i++) stepGame(state)
+    expect(state.player.y).toBeCloseTo(start.y + .12)
+    for (let i = 0; i < 31; i++) stepGame(state)
     expect(state.player.x).toBe(start.x)
-    expect(state.player.y).toBeCloseTo(start.y - .96)
+    expect(state.player.y).toBeCloseTo(start.y + 1.98)
     stepGame(state)
-    expect(state.player.x).toBeCloseTo(start.x + .02)
-    expect(state.player.y).toBe(start.y - 1)
+    expect(state.player.x).toBeCloseTo(start.x + .04)
+    expect(state.player.y).toBe(start.y + 2)
   })
 
   it('stops at a wall and reverses immediately between centers', () => {
@@ -56,8 +56,8 @@ describe('maze and movement', () => {
     expect(state.player).toMatchObject(start)
   })
 
-  it('wraps smoothly across either edge of both tunnels', () => {
-    expect(CURRENT_MAZE.tunnels).toHaveLength(2)
+  it('wraps smoothly across either mouth of the side tunnel', () => {
+    expect(CURRENT_MAZE.tunnels).toEqual([14])
     for (const y of CURRENT_MAZE.tunnels) {
       const state = createGame(1)
       state.ghosts = []

@@ -1,5 +1,5 @@
 import {
-  CURRENT_MAZE, DIRECTIONS, type Direction, LEGACY_MAZE, type Maze, OPPOSITE, point, VECTORS,
+  CURRENT_MAZE, DIRECTIONS, type Direction, LEGACY_MAZE, MAZES, type Maze, OPPOSITE, point, VECTORS,
 } from './maze.ts'
 import { type Actor, createActor, moveActor, occupiedTile, reverseActor } from './movement.ts'
 import { randomIndex } from './random.ts'
@@ -174,16 +174,14 @@ function ghostRules(maze: Maze) {
   return { createGhosts, moveGhosts }
 }
 
-const current = ghostRules(CURRENT_MAZE)
-const legacy = ghostRules(LEGACY_MAZE)
+const rulesByMaze = new Map(Object.values(MAZES).map(maze => [maze, ghostRules(maze)]))
 
 export function createGhosts(maze = CURRENT_MAZE) {
-  return (maze === LEGACY_MAZE ? legacy : current).createGhosts()
+  return rulesByMaze.get(maze)!.createGhosts()
 }
 
 export function moveGhosts(state: GhostContext, tickMs: number, maze = CURRENT_MAZE) {
-  const rules = maze === LEGACY_MAZE ? legacy : current
-  rules.moveGhosts(state, tickMs)
+  rulesByMaze.get(maze)!.moveGhosts(state, tickMs)
 }
 
 export function touchesPlayer(ghost: Ghost, player: Actor, maze = CURRENT_MAZE) {

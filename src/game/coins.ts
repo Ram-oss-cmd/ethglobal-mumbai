@@ -1,4 +1,4 @@
-import { CURRENT_MAZE, LEGACY_MAZE, type Maze, PELLET_COUNT, point } from './maze.ts'
+import { CURRENT_MAZE, LEGACY_MAZE, MAZES, type Maze, PELLET_COUNT, point } from './maze.ts'
 import { randomIndex } from './random.ts'
 
 export type Dot = ReturnType<typeof point> & { id: number }
@@ -30,14 +30,13 @@ function pelletZones(maze: Maze) {
   }
   return zones
 }
-const currentZones = pelletZones(CURRENT_MAZE)
-const legacyZones = pelletZones(LEGACY_MAZE)
+const zonesByMaze = new Map(Object.values(MAZES).map(maze => [maze, pelletZones(maze)]))
 
 export function createCoins(seed: number, alternateLayout = false, maze = CURRENT_MAZE): CoinState {
   // The second seat picks a different tile in every quadrant without changing the common game seed.
   const layout = { randomState: seed >>> 0 }
   const alternate = { randomState: (seed ^ 0x52555348) >>> 0 }
-  const pelletTiles = (maze === LEGACY_MAZE ? legacyZones : currentZones).map(zone => {
+  const pelletTiles = zonesByMaze.get(maze)!.map(zone => {
     const first = randomIndex(layout, zone.length)
     const index = alternateLayout ? (first + 1 + randomIndex(alternate, zone.length - 1)) % zone.length : first
     return zone[index]

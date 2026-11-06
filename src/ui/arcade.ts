@@ -4,8 +4,9 @@ import {
   type Direction, type GameState,
 } from '../game'
 import type { RunView } from '../competition/protocol'
+import type { MazeId } from '../game/maze'
 import {
-  board, interpolateActor, legacyBoard, PLAYER_SIZE, TILE_HEIGHT, TILE_WIDTH, WALL_STROKE,
+  board, boards, GHOST_SIZE, interpolateActor, TILE_WIDTH, WALL_STROKE,
 } from './mazeGeometry'
 
 import tracer from './assets/tracer.svg'
@@ -35,7 +36,6 @@ const sprites = {
   hit_right: hitRight,
 }
 
-const GHOST_SIZE = 54
 const BACKGROUND = 0x000000
 const keys = new Map<string, Direction>([
   ['arrowup', 'up'], ['w', 'up'],
@@ -73,13 +73,13 @@ function addWalls(parent: HTMLDivElement, layout: typeof board) {
     const closed = points[0] === points.at(-1)
     const tail = points.slice(1, closed ? -1 : undefined)
     return `M${points[0].join(' ')} L${tail.map(point => point.join(' ')).join(' ')}${closed ? ' Z' : ''}`
-  }).join(' '), '#4657ff')
+  }).join(' '), layout.wallColor)
   path(`M${layout.gate[0].join(' ')} L${layout.gate[1].join(' ')}`, '#ffa8ce')
   parent.append(svg)
   return svg
 }
 
-function drawVault(scene: Phaser.Scene, VAULT: typeof board.vault) {
+function drawVault(scene: Phaser.Scene, VAULT: typeof board.vault, TILE_HEIGHT: number) {
   const g = scene.add.graphics()
   const vaultX = VAULT.x * TILE_WIDTH
   const threshold = VAULT.y * TILE_HEIGHT
@@ -114,7 +114,7 @@ function drawVault(scene: Phaser.Scene, VAULT: typeof board.vault) {
   g.strokePath()
 }
 
-function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObjects.Graphics, state: RunView) {
+function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObjects.Graphics, state: RunView, TILE_HEIGHT: number) {
   dots.clear().fillStyle(0xffba9d)
   for (const dot of state.dots) {
     const x = (dot.x + 0.5) * TILE_WIDTH
@@ -139,7 +139,7 @@ function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObje
   }
 }
 
-function actor(scene: Phaser.Scene, texture: string, WIDTH: number, size = GHOST_SIZE, mirror = true) {
+function actor(scene: Phaser.Scene, texture: string, WIDTH: number, TILE_HEIGHT: number, size = GHOST_SIZE, mirror = true) {
   const image = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   const wrap = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   return (position: GameState['player'], nextTexture: string, alpha = 1) => {
@@ -168,9 +168,9 @@ export function hudFor(state: RunView, ready = false): Hud {
   }
 }
 
-export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFrame?: (now: number) => void, legacy = false) {
-  const layout = legacy ? legacyBoard : board
-  const { width: WIDTH, height: HEIGHT, vault: VAULT } = layout
+export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFrame?: (now: number) => void, mazeId: MazeId = 'classic') {
+  const layout = boards[mazeId]
+  const { width: WIDTH, height: HEIGHT, vault: VAULT, tileHeight: TILE_HEIGHT, playerSize } = layout
   const columns = WIDTH / TILE_WIDTH
   const walls = addWalls(parent, layout)
   const reducedEffects = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -215,18 +215,18 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
         for (const key of ['normal_left', 'normal_right', 'hit_left', 'hit_right']) {
           this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR)
         }
-        drawVault(this, VAULT)
+        drawVault(this, VAULT, TILE_HEIGHT)
         const dots = this.add.graphics()
         const pellets = this.add.graphics()
         const bankFlash = this.add.rectangle((VAULT.x + 0.5) * TILE_WIDTH, VAULT.y * TILE_HEIGHT, TILE_WIDTH - 2, WALL_STROKE, 0xeaffd9)
           .setVisible(false)
-        const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id, WIDTH))
-        const player = actor(this, 'normal_left', WIDTH, PLAYER_SIZE, false)
+        const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id, WIDTH, TILE_HEIGHT))
+        const player = actor(this, 'normal_left', WIDTH, TILE_HEIGHT, playerSize, false)
 
         draw = (now) => {
           if (!state) return
           if (changed) {
-            drawPickups(dots, pellets, state)
+            drawPickups(dots, pellets, state, TILE_HEIGHT)
             changed = false
           }
           pellets.setAlpha(reducedEffects || Math.floor(now / 250) % 2 === 0 ? 1 : 0)

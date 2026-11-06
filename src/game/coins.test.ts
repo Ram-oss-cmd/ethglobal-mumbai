@@ -41,8 +41,7 @@ describe('collecting and banking', () => {
       expect(state.pellets).toHaveLength(4)
       expect(new Set(state.pellets.map(({ x, y }) => (y < MAZE.length / 2 ? 0 : 2) + Number(x > WIDTH / 2))).size).toBe(4)
       for (const { x, y } of state.pellets) {
-        expect(x).toBeGreaterThan(1)
-        expect(x).toBeLessThan(WIDTH - 2)
+        expect([1, WIDTH - 2]).toContain(x)
         expect(MAZE[y][x]).toBe('o')
         expect(state.dots.some(dot => dot.x === x && dot.y === y)).toBe(false)
       }
@@ -141,7 +140,7 @@ describe('collecting and banking', () => {
       const bankedIds = new Set(state.carriedDots.map(dot => dot.id))
       stepGame(state)
       for (let life = 2; life >= 0; life--) {
-        state.player = createActor(TUNNEL_ROW * WIDTH + 5 + 4 * (2 - life))
+        state.player = createActor(TUNNEL_ROW * WIDTH + [5, 8, 26][2 - life])
         advance(state, 34, 'left')
         expect(state.carried).toBeGreaterThan(0)
         const lost = state.carriedDots.map(dot => dot.id)

@@ -1,10 +1,11 @@
-import { CURRENT_MAZE, LEGACY_MAZE, type Maze } from '../game/maze.ts'
+import { CURRENT_MAZE, LEGACY_MAZE, MAZES, type Maze } from '../game/maze.ts'
 import type { Actor } from '../game/movement.ts'
+import { referenceWalls } from './referenceWalls'
 
 export const TILE_WIDTH = 60
 export const TILE_HEIGHT = 54
 export const WALL_STROKE = 3
-export const PLAYER_SIZE = 92
+export const GHOST_SIZE = 54
 
 const LANE_WIDTH = 92
 const insetX = (LANE_WIDTH - TILE_WIDTH) / 2
@@ -95,11 +96,41 @@ function geometry(maze: Maze) {
     [door.x * TILE_WIDTH - insetX, gateY],
     [(door.x + 1) * TILE_WIDTH + insetX, gateY],
   ]
-  return { width, height, aspect: width / height, gate, wallPaths: traceWalls(maze), vault: maze.vault }
+  return { width, height, aspect: width / height, tileHeight: TILE_HEIGHT, playerSize: 92, wallColor: '#4657ff',
+    gate, wallPaths: traceWalls(maze), vault: maze.vault }
 }
 
-export const board = geometry(CURRENT_MAZE)
-export const legacyBoard = geometry(LEGACY_MAZE)
+function referenceBoard(): ReturnType<typeof geometry> {
+  const maze = CURRENT_MAZE
+  const width = maze.width * TILE_WIDTH
+  const height = maze.rows.length * TILE_WIDTH
+  const scale = TILE_WIDTH / 8
+  const project = (x: number, y: number): Point => [(x + .5) * scale, (y - 7.5) * scale]
+  const vaultX = (maze.vault.x + .5) * 8 - .5
+  const wallPaths = referenceWalls.map(source => {
+    const closed = source[0][0] === source.at(-1)![0] && source[0][1] === source.at(-1)![1]
+    const points = source.flatMap(([x, y], index) => {
+      const next = source[index + 1]
+      const point = project(x, y)
+      if (!closed && (index === 0 || !next)) {
+        return [[x === 0 ? 0 : width, point[1]] as Point]
+      }
+      if (y < 252 || next?.[1] !== y || x >= vaultX || next[0] <= vaultX) return [point]
+      // Extend both bottom outlines around the added vault entrance.
+      const inset = y === 252 ? 6 : 9
+      const bottom = y === 252 ? 267 : 270
+      return [point, project(vaultX - inset, y), project(vaultX - inset, bottom),
+        project(vaultX + inset, bottom), project(vaultX + inset, y)]
+    })
+    if (closed) points[points.length - 1] = points[0]
+    return points
+  })
+  return { width, height, aspect: width / height, tileHeight: TILE_WIDTH, playerSize: 76, wallColor: '#0080f8',
+    gate: [project(103, 109), project(120, 109)], wallPaths, vault: maze.vault }
+}
+
+export const board = referenceBoard()
+export const boards = { classic: board, symmetric: geometry(MAZES.symmetric), legacy: geometry(LEGACY_MAZE) }
 export const BOARD_ASPECT = board.aspect
 
 export function interpolateActor(from: Actor | undefined, to: Actor, ratio: number, columns: number): Actor {

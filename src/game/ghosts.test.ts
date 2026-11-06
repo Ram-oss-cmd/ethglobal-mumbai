@@ -66,13 +66,13 @@ describe('ghost behavior', () => {
     const state = createGame(4)
     const pellet = state.pellets[1]
     const tile = pellet.y * WIDTH + pellet.x
-    state.player = createActor(tile - 1)
+    state.player = createActor(tile + WIDTH)
     const [tracer, snare] = state.ghosts
     state.ghosts = [tracer, snare]
     Object.assign(tracer, createActor(tile), { readyAtMs: 170 })
-    Object.assign(snare, createActor(WIDTH * 16 + 1), { readyAtMs: 0 })
+    Object.assign(snare, createActor(WIDTH * TUNNEL_ROW + 1), { readyAtMs: 0 })
 
-    advance(state, 16, 'right')
+    advance(state, 16, 'up')
     expect(state.frightenedUntilMs).toBe(0)
     stepGame(state)
     expect(state.pellets).toHaveLength(3)
@@ -91,7 +91,7 @@ describe('ghost behavior', () => {
     state.player = createActor(VAULT_TILE)
     state.requestedDirection = null
 
-    for (let tick = 0; tick < 400 && tracer.mode !== 'recovering'; tick++) stepGame(state)
+    for (let tick = 0; tick < 600 && tracer.mode !== 'recovering'; tick++) stepGame(state)
     expect(tracer).toMatchObject({ ...GHOST_HOME, mode: 'recovering' })
     expect(state.elapsedMs).toBeLessThan(state.frightenedUntilMs)
     advance(state, (state.frightenedUntilMs - state.elapsedMs) / TICK_MS - 1)
@@ -104,8 +104,8 @@ describe('ghost behavior', () => {
 
   it('preserves the legacy replay through power-up, collisions and dot respawn', () => {
     const moves = new Map<number, Direction>([[0, 'down'], [10, 'left']])
-    const first = createGame(7, false, true)
-    const second = createGame(7, false, true)
+    const first = createGame(7, false, 'legacy')
+    const second = createGame(7, false, 'legacy')
     let sawPower = false
     let sawLoss = false
     for (let tick = 0; tick < 2_500; tick++) {

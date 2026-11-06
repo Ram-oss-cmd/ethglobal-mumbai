@@ -5,8 +5,9 @@ import {
 } from '../competition/protocol'
 import { replayRun } from '../competition/run'
 import { TICK_MS } from '../game'
-import { BOARD_ASPECT, createBoard, hudFor, steeringKey } from './arcade'
-import { legacyBoard } from './mazeGeometry'
+import { createBoard, hudFor, steeringKey } from './arcade'
+import { boards } from './mazeGeometry'
+import type { MazeId } from '../game/maze'
 import { ArenaFooter, endings, initialHud, Scoreboard, TouchControls } from './CabinetHud'
 import PrizeFunding from '../web3/PrizeFunding'
 import type { PrizeMember } from '../web3/api'
@@ -203,8 +204,8 @@ export default function Competition({ matchId, leave, prize, initialStakeUnits, 
   )
 }
 
-function MatchBoard({ title, run, smooth = false, legacy = false }: {
-  title: string; run?: RunView | null; smooth?: boolean; legacy?: boolean
+function MatchBoard({ title, run, smooth = false, layout = 'classic' }: {
+  title: string; run?: RunView | null; smooth?: boolean; layout?: MazeId
 }) {
   const board = useRef<HTMLDivElement>(null)
   const engine = useRef<ReturnType<typeof createBoard> | null>(null)
@@ -214,7 +215,7 @@ function MatchBoard({ title, run, smooth = false, legacy = false }: {
   useEffect(() => {
     const handle = requestAnimationFrame(() => {
       if (!board.current) return
-      engine.current = createBoard(board.current, undefined, undefined, legacy)
+      engine.current = createBoard(board.current, undefined, undefined, layout)
       if (frame.current.run) engine.current.present(frame.current.run)
     })
     return () => {
@@ -222,7 +223,7 @@ function MatchBoard({ title, run, smooth = false, legacy = false }: {
       engine.current?.destroy()
       engine.current = null
     }
-  }, [legacy])
+  }, [layout])
 
   useEffect(() => {
     frame.current = { run, smooth }
@@ -234,7 +235,7 @@ function MatchBoard({ title, run, smooth = false, legacy = false }: {
       <h2>{title}{endings[hud.status] && <small>{endings[hud.status]}</small>}</h2>
       <Scoreboard {...hud} />
       <div className="maze" ref={board} role="region" aria-label={`${title} maze`}
-        style={{ aspectRatio: legacy ? legacyBoard.aspect : BOARD_ASPECT }} />
+        style={{ aspectRatio: boards[layout].aspect }} />
       <ArenaFooter {...hud} />
     </section>
   )
@@ -253,7 +254,7 @@ export function Replay({ record, seat, leave }: { record: MatchRecord; seat: Sea
     replayRun(run.seed, run.inputs.filter(input => input.tick <= tick), tick, undefined, run.alternateLayout, run.engineVersion), [run, tick])
   return (
     <section className="replay">
-      <MatchBoard title={`Replay · Seat ${seat + 1}`} run={view} legacy={view.legacy} />
+      <MatchBoard title={`Replay · Seat ${seat + 1}`} run={view} layout={view.layout} />
       <label className="replay-slider">
         Replay time · {(tick * TICK_MS / 1000).toFixed(2)}s
         <input type="range" min={0} max={run.ticks} value={tick} onChange={event => setTick(event.target.valueAsNumber)} />
