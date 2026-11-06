@@ -100,13 +100,13 @@ function allowedOrigin(request: IncomingMessage, configuredOrigin?: string) {
 function playerView(player: Player | null, phase: Room['phase']): PlayerView | null {
   if (!player) return null
   const { elapsedMs, lives, status, carried, banked, player: actor, ghosts, dots, pellets,
-    frightenedUntilMs, invulnerableUntilMs, respawnAtMs } = player.run
+    frightenedUntilMs, invulnerableUntilMs, respawnAtMs, ghostPauseUntilMs } = player.run
   return {
     playerId: player.id,
     ready: player.ready,
     connected: !!player.socket,
     run: phase === 'lobby' ? null : { elapsedMs, lives, status, carried, banked, player: actor, ghosts, dots,
-      pellets, frightenedUntilMs, invulnerableUntilMs, respawnAtMs },
+      pellets, frightenedUntilMs, invulnerableUntilMs, respawnAtMs, ghostPauseUntilMs },
   }
 }
 
@@ -172,12 +172,13 @@ function runDueTicks(room: Room, now: number) {
     room.nextTickAt += TICK_MS
     for (const player of [first, second]) {
       if (player.run.status !== 'playing') continue
-      const { status, lives, banked } = player.run
+      const { status, lives, banked, ghostPauseUntilMs } = player.run
       player.ticks++
       if (player.pending) player.inputs.push({ tick: player.ticks, direction: player.pending })
       stepGame(player.run, player.pending)
       player.pending = undefined
-      changed ||= status !== player.run.status || lives !== player.run.lives || banked !== player.run.banked
+      changed ||= status !== player.run.status || lives !== player.run.lives ||
+        banked !== player.run.banked || ghostPauseUntilMs !== player.run.ghostPauseUntilMs
     }
     // Evaluate after both runs advance so a same-tick full-clear is a draw.
     const result = decideMatch([first.run, second.run])

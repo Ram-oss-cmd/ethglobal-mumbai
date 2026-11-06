@@ -1,6 +1,6 @@
 export const MAZE = [
   '#######################',
-  '#E...................E#',
+  '#.....................#',
   '#.###.#######.#######.#',
   '#.###.............###.#',
   '#.#######.#.#####.###.#',
@@ -15,7 +15,7 @@ export const MAZE = [
   '#.###.###..P..###.#...#',
   '#...#....##.##....#.#.#',
   '#.#.####.##.##.####.#.#',
-  '#E...................E#',
+  '#.....................#',
   '###########V###########',
   '#######################',
 ] as const
@@ -49,9 +49,9 @@ export const HOME_TILE = DOOR_TILE + WIDTH
 export const VAULT_TILE = tiles.indexOf('V')
 export const VAULT = point(VAULT_TILE)
 export const GHOST_HOME = point(HOME_TILE)
-export const START_DOTS = [...tiles].flatMap((cell, tile) => cell === '.' ? [tile] : [])
-export const START_PELLETS = [...tiles].flatMap((cell, tile) => cell === 'E' ? [tile] : [])
-export const TOTAL_DOTS = START_DOTS.length
+export const COLLECTIBLE_TILES = [...tiles].flatMap((cell, tile) => cell === '.' ? [tile] : [])
+export const PELLET_COUNT = 4
+export const TOTAL_DOTS = COLLECTIBLE_TILES.length - PELLET_COUNT
 
 export function inGhostHouse(tile: number) {
   return tiles[tile] === 'G' || tile === DOOR_TILE

@@ -78,6 +78,9 @@ export function buildMatchRecord(
 export function verifyMatchRecord(record: MatchRecord) {
   if (!Array.isArray(record?.runs) || record.runs.length !== 2) throw new Error('Expected two replay runs')
   const [first, second] = record.runs
+  if (first?.engineVersion !== ENGINE_VERSION || second?.engineVersion !== ENGINE_VERSION) {
+    throw new Error('Replay uses a different game engine version')
+  }
   const replay = reconstruct(
     record.matchId, [first.playerId, second.playerId], first.seed,
     [first.inputs, second.inputs], [first.ticks, second.ticks], record.result,

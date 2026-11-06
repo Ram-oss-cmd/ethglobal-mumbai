@@ -4,7 +4,7 @@ import {
 } from './coins.ts'
 import { createGhosts, type Ghost, moveGhosts, touchesPlayer } from './ghosts.ts'
 import {
-  type Direction, nextTile, OPPOSITE, point, START_PELLETS, START_TILE, TOTAL_DOTS, VAULT_TILE,
+  type Direction, nextTile, OPPOSITE, point, START_TILE, TOTAL_DOTS, VAULT_TILE,
 } from './maze.ts'
 import { type Actor, createActor, moveActor, occupiedTile, reverseActor } from './movement.ts'
 
@@ -15,7 +15,8 @@ export { type Direction, MAZE, VAULT, GHOST_HOME, TOTAL_DOTS } from './maze.ts'
 export const TICK_MS = 10
 export const RUN_MS = 90_000
 export const DEATH_PAUSE_MS = 1_500
-const PLAYER_SPEED = 64
+export const GHOST_EAT_PAUSE_MS = 350
+const PLAYER_SPEED = 60
 const RESPAWN_SHIELD_MS = 2_100
 const POWER_DURATION_MS = 7_000
 
@@ -28,9 +29,9 @@ export interface GameState extends CoinState {
   frightenedUntilMs: number
   invulnerableUntilMs: number
   respawnAtMs: number
+  ghostPauseUntilMs: number
   player: Actor
   ghosts: Ghost[]
-  pellets: ReturnType<typeof point>[]
   requestedDirection: Direction | null
   terminalRespawnMs: number
   waveMs: number
@@ -45,9 +46,9 @@ export function createGame(seed: number): GameState {
     frightenedUntilMs: 0,
     invulnerableUntilMs: 0,
     respawnAtMs: 0,
+    ghostPauseUntilMs: 0,
     player: createActor(START_TILE),
     ghosts: createGhosts(),
-    pellets: START_PELLETS.map(point),
     requestedDirection: null,
     terminalRespawnMs: 0,
     waveMs: 0,
@@ -90,6 +91,11 @@ export function stepGame(state: GameState, input?: Direction) {
     return
   }
   if (input) state.requestedDirection = input
+  if (state.ghostPauseUntilMs > 0) {
+    if (state.elapsedMs === state.ghostPauseUntilMs) state.ghostPauseUntilMs = 0
+    finishTick(state)
+    return
+  }
   const { player, requestedDirection } = state
 
   if (player.direction && requestedDirection === OPPOSITE[player.direction]) reverseActor(player)
@@ -123,7 +129,13 @@ export function stepGame(state: GameState, input?: Direction) {
     moveGhosts(state, TICK_MS)
     for (const ghost of state.ghosts) {
       if (!touchesPlayer(ghost, player)) continue
-      if (ghost.mode === 'frightened') ghost.mode = 'returning'
+      if (ghost.mode === 'frightened') {
+        ghost.mode = 'returning'
+        state.ghostPauseUntilMs = state.elapsedMs + GHOST_EAT_PAUSE_MS
+        // The celebration consumes match time, but preserves the remaining power-up.
+        state.frightenedUntilMs += GHOST_EAT_PAUSE_MS
+        break
+      }
       if ((ghost.mode === 'chase' || ghost.mode === 'scatter') && state.elapsedMs >= state.invulnerableUntilMs) {
         loseLife(state)
         break

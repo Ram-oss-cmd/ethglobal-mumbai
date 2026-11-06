@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createGame, DEATH_PAUSE_MS, type Direction, type GameState, GHOST_HOME, stepGame, TICK_MS, VAULT } from './index'
+import { createGame, DEATH_PAUSE_MS, type Direction, type GameState, GHOST_EAT_PAUSE_MS, GHOST_HOME, stepGame, TICK_MS, VAULT } from './index'
 import { START_TILE, VAULT_TILE, WIDTH } from './maze'
 import { createActor, occupiedTile } from './movement'
 
@@ -33,9 +33,9 @@ describe('ghost behavior', () => {
 
   it('freezes both sides at contact, then respawns only the wallet', () => {
     const state = createGame(1)
-    advance(state, 55, 'down')
-    advance(state, 55, 'up')
-    advance(state, 32, 'left')
+    advance(state, 59, 'down')
+    advance(state, 59, 'up')
+    advance(state, 34, 'left')
     expect(state).toMatchObject({ carried: 2, banked: 3 })
 
     const ghosts = state.ghosts
@@ -58,26 +58,36 @@ describe('ghost behavior', () => {
     stepGame(state, 'down')
     expect(ghosts[0]).not.toEqual(actorsAtDeath[1])
     expect(state.waveMs).toBe(waveBeforeDeath + 2 * TICK_MS)
-    expect(state.player.y).toBeCloseTo(13.064)
+    expect(state.player.y).toBeCloseTo(13.06)
     expect(state.lives).toBe(2)
   })
 
-  it('powers up on a pellet, eats a vulnerable ghost, and restores normal behavior', () => {
+  it('freezes every actor briefly after a ghost catch, preserves the power-up, and restores normal behavior', () => {
     const state = createGame(4)
-    state.player = createActor(WIDTH + 20)
+    const pellet = state.pellets[1]
+    const tile = pellet.y * WIDTH + pellet.x
+    state.player = createActor(tile - 1)
     const [tracer, snare] = state.ghosts
     state.ghosts = [tracer, snare]
-    Object.assign(tracer, createActor(WIDTH + 21), { readyAtMs: 160 })
+    Object.assign(tracer, createActor(tile), { readyAtMs: 170 })
     Object.assign(snare, createActor(WIDTH * 16 + 1), { readyAtMs: 0 })
 
-    advance(state, 15, 'right')
+    advance(state, 16, 'right')
     expect(state.frightenedUntilMs).toBe(0)
     stepGame(state)
     expect(state.pellets).toHaveLength(3)
-    expect(state.frightenedUntilMs - state.elapsedMs).toBe(7_000)
+    expect(state.ghostPauseUntilMs - state.elapsedMs).toBe(GHOST_EAT_PAUSE_MS)
     expect(tracer.mode).toBe('returning')
     expect(snare.mode).toBe('frightened')
     expect(state).toMatchObject({ carried: 0, banked: 0, lives: 3 })
+
+    const actorsAtCatch = structuredClone([state.player, ...state.ghosts])
+    advance(state, GHOST_EAT_PAUSE_MS / TICK_MS, 'left')
+    expect([state.player, ...state.ghosts]).toEqual(actorsAtCatch)
+    expect(state.frightenedUntilMs - state.elapsedMs).toBe(7_000)
+    expect(state.ghostPauseUntilMs).toBe(0)
+    stepGame(state)
+    expect(tracer).not.toEqual(actorsAtCatch[1])
 
     for (let tick = 0; tick < 400 && tracer.mode !== 'recovering'; tick++) stepGame(state)
     expect(tracer).toMatchObject({ ...GHOST_HOME, mode: 'recovering' })
@@ -92,8 +102,8 @@ describe('ghost behavior', () => {
 
   it('replays the same seed and timed inputs through power-up, collisions and dot respawn', () => {
     const moves = new Map<number, Direction>([[0, 'down'], [10, 'left']])
-    const first = createGame(11)
-    const second = createGame(11)
+    const first = createGame(7)
+    const second = createGame(7)
     let sawPower = false
     let sawLoss = false
     for (let tick = 0; tick < 2_500; tick++) {

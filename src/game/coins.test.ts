@@ -10,14 +10,14 @@ function advance(state: GameState, ticks: number, direction?: Direction) {
 }
 
 function collectAndBank(state: GameState) {
-  advance(state, 54, 'down')
+  advance(state, 58, 'down')
   expect(state.carried).toBe(3)
   expect(state.banked).toBe(0)
-  expect(state.player.y).toBeCloseTo(16.456)
+  expect(state.player.y).toBeCloseTo(16.48)
   stepGame(state)
   expect(state.carried).toBe(0)
   expect(state.banked).toBe(3)
-  expect(state.player.y).toBeCloseTo(16.52)
+  expect(state.player.y).toBeCloseTo(16.54)
 }
 
 function unbankedIds(state: GameState) {
@@ -34,6 +34,25 @@ function expectConserved(state: GameState) {
 }
 
 describe('collecting and banking', () => {
+  it('places four seeded power pellets on separate corridor tiles without changing the bankable total', () => {
+    const layouts = new Set<string>()
+    for (let seed = 0; seed < 20; seed++) {
+      const state = createGame(seed)
+      expect(createGame(seed).pellets).toEqual(state.pellets)
+      expect(state.pellets).toHaveLength(4)
+      expect(new Set(state.pellets.map(({ x, y }) => (y < MAZE.length / 2 ? 0 : 2) + Number(x > WIDTH / 2))).size).toBe(4)
+      for (const { x, y } of state.pellets) {
+        expect(x).toBeGreaterThan(1)
+        expect(x).toBeLessThan(WIDTH - 2)
+        expect(MAZE[y][x]).toBe('.')
+        expect(state.dots.some(dot => dot.x === x && dot.y === y)).toBe(false)
+      }
+      expectConserved(state)
+      layouts.add(JSON.stringify(state.pellets))
+    }
+    expect(layouts.size).toBeGreaterThan(1)
+  })
+
   it('banks on threshold entry and never counts those dots on another trip', () => {
     const state = createGame(1)
     collectAndBank(state)
@@ -45,11 +64,11 @@ describe('collecting and banking', () => {
 
   it('keeps banked points and permanently removes their identities after death', () => {
     const state = createGame(5)
-    advance(state, 54, 'down')
+    advance(state, 58, 'down')
     const bankedIds = state.carriedDots.map(dot => dot.id)
     stepGame(state)
-    advance(state, 55, 'up')
-    advance(state, 32, 'left')
+    advance(state, 59, 'up')
+    advance(state, 34, 'left')
     expect(state.carried).toBe(2)
     loseLife(state)
     expect(state).toMatchObject({ lives: 2, carried: 0, banked: 3 })
@@ -69,7 +88,7 @@ describe('collecting and banking', () => {
       state.ghosts = []
       state.player = createActor(TUNNEL_ROW * WIDTH + 4)
       state.route = [state.player.tile]
-      advance(state, 94, 'left')
+      advance(state, 100, 'left')
       expect(state.carried).toBe(4)
       const lost = state.carriedDots.map(dot => ({ ...dot }))
       loseLife(state)
@@ -108,13 +127,13 @@ describe('collecting and banking', () => {
   it('releases final-life respawns without changing the terminal run clock', () => {
     const state = createGame(2)
     state.lives = 1
-    advance(state, 32, 'down')
+    advance(state, 34, 'down')
     expect(state.carried).toBe(2)
     loseLife(state)
     const hitPosition = { ...state.player }
-    expect(state).toMatchObject({ elapsedMs: 320, lives: 0, status: 'playing' })
+    expect(state).toMatchObject({ elapsedMs: 340, lives: 0, status: 'playing' })
     advance(state, DEATH_PAUSE_MS / TICK_MS + 1, 'left')
-    expect(state).toMatchObject({ elapsedMs: 320 + DEATH_PAUSE_MS, lives: 0, carried: 0, status: 'out-of-lives' })
+    expect(state).toMatchObject({ elapsedMs: 340 + DEATH_PAUSE_MS, lives: 0, carried: 0, status: 'out-of-lives' })
     expect(state.player).toEqual(hitPosition)
     expect(state.queuedDots).toHaveLength(0)
     expectConserved(state)
@@ -122,7 +141,7 @@ describe('collecting and banking', () => {
 
   it('holds a due dot until its reserved tile is vacant', () => {
     const state = createGame(2)
-    advance(state, 16, 'down')
+    advance(state, 17, 'down')
     loseLife(state)
     expect(state.queuedDots).toHaveLength(1)
     const dot = state.queuedDots[0]
@@ -144,10 +163,10 @@ describe('collecting and banking', () => {
     const state = createGame(3)
     state.dots = state.dots.filter(dot => dot.x === 11 && dot.y === 16)
     state.banked = TOTAL_DOTS - 1
-    advance(state, 54, 'down')
+    advance(state, 58, 'down')
     expect(state).toMatchObject({ status: 'playing', carried: 1, banked: TOTAL_DOTS - 1 })
     advance(state, 50, 'down')
-    expect(state).toMatchObject({ status: 'full-clear', carried: 0, banked: TOTAL_DOTS, elapsedMs: 550 })
+    expect(state).toMatchObject({ status: 'full-clear', carried: 0, banked: TOTAL_DOTS, elapsedMs: 590 })
     expect(state.player.y).toBe(16.5)
     expectConserved(state)
   })

@@ -1,4 +1,4 @@
-import { HOME_TILE, point, START_DOTS, START_PELLETS, START_TILE, VAULT_TILE, WIDTH } from './maze.ts'
+import { COLLECTIBLE_TILES, MAZE, PELLET_COUNT, point, START_TILE, VAULT_TILE, WIDTH } from './maze.ts'
 import { randomIndex } from './random.ts'
 
 export type Dot = ReturnType<typeof point> & { id: number }
@@ -11,6 +11,7 @@ export interface CoinState {
   carried: number
   banked: number
   dots: Dot[]
+  pellets: ReturnType<typeof point>[]
   carriedDots: Dot[]
   retiredTiles: number[]
   route: number[]
@@ -18,11 +19,25 @@ export interface CoinState {
   randomState: number
 }
 
+const pelletZones: number[][] = Array.from({ length: PELLET_COUNT }, () => [])
+for (const tile of COLLECTIBLE_TILES) {
+  const { x, y } = point(tile)
+  const center = Math.floor(WIDTH / 2)
+  // Leave the outer corners and the direct vault lane free of power-ups.
+  if (x <= 1 || x >= WIDTH - 2 || x === center) continue
+  const zone = (y < MAZE.length / 2 ? 0 : 2) + Number(x > center)
+  pelletZones[zone].push(tile)
+}
+
 export function createCoins(seed: number): CoinState {
+  // One seeded pick per quadrant spreads the power-ups equally in both players' mazes.
+  const layout = { randomState: seed >>> 0 }
+  const pelletTiles = pelletZones.map(zone => zone[randomIndex(layout, zone.length)])
   return {
     carried: 0,
     banked: 0,
-    dots: START_DOTS.map((tile, id) => ({ id, ...point(tile) })),
+    dots: COLLECTIBLE_TILES.filter(tile => !pelletTiles.includes(tile)).map((tile, id) => ({ id, ...point(tile) })),
+    pellets: pelletTiles.map(point),
     carriedDots: [],
     retiredTiles: [],
     route: [START_TILE],
@@ -63,7 +78,7 @@ export function scheduleLostDots(state: CoinState, elapsedMs: number, tickMs: nu
 
   // Every carried dot vacated a unique eligible route tile, so there is room to reserve all of them.
   const reserved = new Set([
-    VAULT_TILE, START_TILE, HOME_TILE, ...START_PELLETS,
+    VAULT_TILE, START_TILE, ...state.pellets.map(tileOf),
     ...state.retiredTiles, ...state.dots.map(tileOf), ...state.queuedDots.map(tileOf),
   ])
   const choices = state.route.filter(tile => !reserved.has(tile))

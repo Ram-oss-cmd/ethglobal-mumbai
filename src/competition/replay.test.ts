@@ -20,16 +20,18 @@ describe('deterministic match verification', () => {
       [{ tick: 1, direction: 'down' }], [{ tick: 1, direction: 'down' }],
     ], [9_000, 9_000], { kind: 'draw', reason: 'banked' })
     expect(verifyMatchRecord(record).map(run => run.banked)).toEqual([3, 3])
-    expect(record.runs[0].banking).toEqual([{ tick: 55, banked: 3 }])
+    expect(record.runs[0].banking).toEqual([{ tick: 59, banked: 3 }])
     const forged = structuredClone(record)
     forged.runs[0].finalBanked = 4
     expect(() => verifyMatchRecord(forged)).toThrow()
     forged.runs[0].finalBanked = 3
-    forged.runs[0].banking[0].tick = 56
+    forged.runs[0].banking[0].tick = 60
     expect(() => verifyMatchRecord(forged)).toThrow()
-    forged.runs[0].banking[0].tick = 55
+    forged.runs[0].banking[0].tick = 59
     forged.runs[0].digest = forged.runs[1].digest
     expect(() => verifyMatchRecord(forged)).toThrow()
+    Object.assign(forged.runs[0], { engineVersion: 'wallet-rush-2' })
+    expect(() => verifyMatchRecord(forged)).toThrow('different game engine version')
   })
 
   it('rejects duplicate, invalid and out-of-range input ticks', () => {

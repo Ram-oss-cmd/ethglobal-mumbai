@@ -25,10 +25,10 @@ interface GhostContext {
 }
 
 const roster = {
-  tracer: { corner: { x: WIDTH - 2, y: 1 }, speed: 56, releaseMs: 0 },
-  snare: { corner: { x: 1, y: 1 }, speed: 52, releaseMs: 450 },
-  relay: { corner: { x: WIDTH - 2, y: MAZE.length - 3 }, speed: 51, releaseMs: 900 },
-  warden: { corner: { x: 1, y: MAZE.length - 3 }, speed: 49, releaseMs: 1_350 },
+  tracer: { corner: { x: WIDTH - 2, y: 1 }, speed: 53, releaseMs: 0 },
+  snare: { corner: { x: 1, y: 1 }, speed: 49, releaseMs: 450 },
+  relay: { corner: { x: WIDTH - 2, y: MAZE.length - 3 }, speed: 48, releaseMs: 900 },
+  warden: { corner: { x: 1, y: MAZE.length - 3 }, speed: 46, releaseMs: 1_350 },
 } satisfies Record<GhostId, { corner: Point; speed: number; releaseMs: number }>
 
 const cells = MAZE.join('')
@@ -155,7 +155,7 @@ export function moveGhosts(state: GhostContext, tickMs: number) {
       ghost.mode = wave
     }
 
-    const speed = ghost.mode === 'returning' ? 92 : ghost.mode === 'frightened' ? 37 : roster[ghost.id].speed
+    const speed = ghost.mode === 'returning' ? 86 : ghost.mode === 'frightened' ? 35 : roster[ghost.id].speed
     moveActor(ghost, speed, tile => {
       if (ghost.mode === 'returning' && tile === HOME_TILE) recover(ghost, state)
       if (ghost.mode === 'recovering') return null

@@ -1,11 +1,11 @@
 import type { Direction, GameState } from '../game/index.ts'
 
-export const ENGINE_VERSION = 'wallet-rush-2'
+export const ENGINE_VERSION = 'wallet-rush-3'
 export const MATCH_SOCKET_PATH = '/ws'
 export type Seat = 0 | 1
 export type RunView = Pick<GameState,
   'elapsedMs' | 'lives' | 'status' | 'carried' | 'banked' | 'player' | 'ghosts' |
-  'dots' | 'pellets' | 'frightenedUntilMs' | 'invulnerableUntilMs' | 'respawnAtMs'>
+  'dots' | 'pellets' | 'frightenedUntilMs' | 'invulnerableUntilMs' | 'respawnAtMs' | 'ghostPauseUntilMs'>
 
 export type ClientMessage =
   | { type: 'join'; matchId: string; resumeToken?: string }
