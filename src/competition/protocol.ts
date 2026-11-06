@@ -9,7 +9,7 @@ export type RunView = Pick<GameState,
   'dots' | 'pellets' | 'frightenedUntilMs' | 'invulnerableUntilMs' | 'respawnAtMs' | 'ghostPauseUntilMs'>
 
 export type ClientMessage =
-  | { type: 'join'; matchId: string; resumeToken?: string; prizeToken?: string }
+  | { type: 'join'; matchId: string; resumeToken?: string; prizeToken?: string; initialStakeUnits?: number }
   | { type: 'ready' }
   | { type: 'stake-offer'; stakeUnits: number }
   | { type: 'confirm-stake'; revision: number }
@@ -44,7 +44,7 @@ export interface MatchRecord {
 }
 
 export interface PrizeState {
-  stage: 'waiting' | 'opening' | 'funding' | 'settling' | 'settled' | 'error'
+  stage: 'waiting' | 'free' | 'opening' | 'funding' | 'settling' | 'settled' | 'error'
   offers?: { units: [number, number]; revision: number }
   stakeUnits?: number
   matchKey?: `0x${string}`

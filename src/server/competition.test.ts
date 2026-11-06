@@ -214,10 +214,10 @@ describe('authoritative two-player competition over WebSocket', () => {
     b.send({ type: 'join', matchId: 'prize-test-room', prizeToken: 'b'.repeat(43) })
     const joined = await b.receive('joined')
     expect(prize.open).not.toHaveBeenCalled()
-    a.send({ type: 'ready' })
+    a.send({ type: 'confirm-stake', revision: 0 })
     await b.receive('state', state => state.seats[0]?.ready === true)
     expect(prize.open).not.toHaveBeenCalled()
-    b.send({ type: 'ready' })
+    b.send({ type: 'confirm-stake', revision: 0 })
     await a.receive('state', state => state.prize?.stage === 'funding')
     expect(prize.open).toHaveBeenCalledOnce()
     expect(prize.open).toHaveBeenCalledWith('prize-test-room', wallets, 10_000_000)
@@ -273,26 +273,24 @@ describe('authoritative two-player competition over WebSocket', () => {
     runtime.close()
     runtime = attachCompetition(server, { now: () => now, prize })
     const a = await connect()
-    a.send({ type: 'join', matchId, prizeToken: 'a'.repeat(43) })
+    a.send({ type: 'join', matchId, prizeToken: 'a'.repeat(43), initialStakeUnits: 5_000_000 })
     await a.receive('joined')
-    a.send({ type: 'stake-offer', stakeUnits: 5_000_000 })
-    await a.receive('state', state => state.prize?.offers?.revision === 1)
 
     const b = await connect()
     b.send({ type: 'join', matchId, prizeToken: 'b'.repeat(43) })
     await b.receive('joined')
-    const prefilled = await b.receive('state', state => state.prize?.offers?.revision === 1)
+    const prefilled = await b.receive('state', state => state.prize?.offers?.revision === 0)
     expect(prefilled.prize?.offers?.units).toEqual([5_000_000, 5_000_000])
     expect(prefilled.seats.map(seat => seat?.ready)).toEqual([false, false])
     b.send({ type: 'stake-offer', stakeUnits: 10_000_000 })
-    await a.receive('state', state => state.prize?.offers?.revision === 2)
-    a.send({ type: 'confirm-stake', revision: 2 })
+    await a.receive('state', state => state.prize?.offers?.revision === 1)
+    a.send({ type: 'confirm-stake', revision: 1 })
     await b.receive('state', state => state.seats[0]?.ready === true)
 
     b.send({ type: 'stake-offer', stakeUnits: 7_250_000 })
-    const changed = await a.receive('state', state => state.prize?.offers?.revision === 3)
+    const changed = await a.receive('state', state => state.prize?.offers?.revision === 2)
     expect(changed.seats.map(seat => seat?.ready)).toEqual([false, false])
-    b.send({ type: 'confirm-stake', revision: 2 })
+    b.send({ type: 'confirm-stake', revision: 1 })
     expect((await b.receive('error')).message).toContain('offers changed')
     b.send({ type: 'ready' })
     expect((await b.receive('error')).message).toContain('Confirm the current stake')
@@ -300,8 +298,8 @@ describe('authoritative two-player competition over WebSocket', () => {
     expect((await b.receive('error')).message).toContain('Invalid match message')
     expect(prize.open).not.toHaveBeenCalled()
 
-    a.send({ type: 'confirm-stake', revision: 3 })
-    b.send({ type: 'confirm-stake', revision: 3 })
+    a.send({ type: 'confirm-stake', revision: 2 })
+    b.send({ type: 'confirm-stake', revision: 2 })
     const funding = await a.receive('state', state => state.prize?.stage === 'funding')
     expect(funding.prize?.stakeUnits).toBe(5_000_000)
     expect(prize.open).toHaveBeenCalledExactlyOnceWith(matchId, wallets, 5_000_000)
@@ -313,6 +311,43 @@ describe('authoritative two-player competition over WebSocket', () => {
     await advance(RUN_MS)
     const { record } = await a.receive('record')
     expect(prize.complete).toHaveBeenCalledExactlyOnceWith(key, record, wallets, 5_000_000)
+  })
+
+  it('turns a staked room into a free match after both confirm a zero offer without calling escrow', async () => {
+    const wallets = [
+      '0x0000000000000000000000000000000000000001',
+      '0x0000000000000000000000000000000000000002',
+    ] as const
+    const matchId = 'prize-counter-zero'
+    const prize: PrizeCompetition = {
+      admit: token => token === 'a'.repeat(43) ? wallets[0] : token === 'b'.repeat(43) ? wallets[1] : undefined,
+      open: vi.fn(), canStart: vi.fn(), complete: vi.fn(),
+    }
+    runtime.close()
+    runtime = attachCompetition(server, { now: () => now, prize })
+    const a = await connect()
+    const b = await connect()
+    a.send({ type: 'join', matchId, prizeToken: 'a'.repeat(43) })
+    await a.receive('joined')
+    b.send({ type: 'join', matchId, prizeToken: 'b'.repeat(43) })
+    await b.receive('joined')
+    b.send({ type: 'stake-offer', stakeUnits: 5_000_000 })
+    expect((await b.receive('error')).message).toContain('does not support that stake')
+    b.send({ type: 'stake-offer', stakeUnits: 0 })
+    await a.receive('state', state => state.prize?.offers?.revision === 1)
+    a.send({ type: 'confirm-stake', revision: 1 })
+    b.send({ type: 'confirm-stake', revision: 1 })
+    const free = await a.receive('state', state => state.prize?.stage === 'free')
+    expect(free.prize?.stakeUnits).toBe(0)
+    expect(free.phase).toBe('lobby')
+    a.send({ type: 'ready' })
+    b.send({ type: 'ready' })
+    await a.receive('state', state => state.phase === 'running')
+    await advance(RUN_MS)
+    await a.receive('record')
+    expect(prize.open).not.toHaveBeenCalled()
+    expect(prize.canStart).not.toHaveBeenCalled()
+    expect(prize.complete).not.toHaveBeenCalled()
   })
 
   it('pauses both clocks for a live disconnect, resumes the seat, and cancels after cumulative grace', async () => {

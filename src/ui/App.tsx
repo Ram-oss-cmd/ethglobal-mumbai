@@ -3,12 +3,11 @@ import type { Address } from 'viem'
 import { injectedWallet, selectedWalletAccount, WALLET_ACCOUNT_KEY } from '../web3/wallet'
 import { BOARD_ASPECT, createArcade, steeringKey, type Hud } from './arcade'
 import { ArenaFooter, endings, initialHud, Scoreboard, TouchControls } from './CabinetHud'
-import Competition from './Competition'
 import './style.css'
 
 const History = lazy(() => import('../history/History'))
-const PrizeLobby = lazy(() => import('../web3/PrizeLobby'))
-type Mode = 'practice' | 'casual' | 'prize' | 'history'
+const Multiplayer = lazy(() => import('../web3/Multiplayer'))
+type Mode = 'practice' | 'multiplayer' | 'history'
 
 export default function App() {
   const replayId = /^\/replay\/([a-z0-9-]{3,32})\/?$/.exec(location.pathname)?.[1]
@@ -21,8 +20,7 @@ export default function App() {
   const [mode, setMode] = useState<Mode>(() => {
     const match = new URLSearchParams(location.search).get('match')
     if (replayId || location.pathname === '/history') return 'history'
-    if (match?.startsWith('prize-')) return 'prize'
-    return match ? 'casual' : 'practice'
+    return match ? 'multiplayer' : 'practice'
   })
 
   useEffect(() => {
@@ -87,13 +85,13 @@ export default function App() {
     </main>
   )
 
-  const multiplayer = mode === 'casual' || mode === 'prize'
+  const multiplayer = mode === 'multiplayer'
   return (
     <main className={`cabinet${multiplayer ? ' cabinet-live' : ''}`}>
       <h1 className="sr-only">Wallet Rush</h1>
       {account ? <nav className="mode-switch" aria-label="Game mode">
         <button type="button" aria-pressed={mode === 'practice'} onClick={() => changeMode('practice')}>Single player</button>
-        <button type="button" aria-pressed={multiplayer} onClick={() => { if (!multiplayer) changeMode('casual') }}>Multiplayer</button>
+        <button type="button" aria-pressed={multiplayer} onClick={() => changeMode('multiplayer')}>Multiplayer</button>
         <button type="button" aria-pressed={mode === 'history'} onClick={() => changeMode('history')}>Match history</button>
       </nav> : <a href="/">Back to Wallet Rush</a>}
       {account && multiplayer && (
@@ -110,14 +108,9 @@ export default function App() {
           {walletError && <p role="alert">{walletError}</p>}
         </div>
       )}
-      {multiplayer && <nav className="mode-switch" aria-label="Multiplayer mode">
-        <button type="button" aria-pressed={mode === 'casual'} onClick={() => changeMode('casual')}>Casual duel</button>
-        <button type="button" aria-pressed={mode === 'prize'} onClick={() => changeMode('prize')}>Prize match</button>
-      </nav>}
       <Suspense fallback={<p role="status">Loading…</p>}>
         {mode === 'practice' && <Practice />}
-        {mode === 'casual' && <Competition />}
-        {mode === 'prize' && account && <PrizeLobby key={account} account={account} />}
+        {multiplayer && account && <Multiplayer key={account} account={account} />}
         {mode === 'history' && <History key={replayId ?? 'history'} matchId={replayId} />}
       </Suspense>
     </main>

@@ -1,4 +1,4 @@
-import { defineChain, isAddressEqual, keccak256, parseAbi, parseEventLogs, stringToHex, type Address, type Hex, type Log } from 'viem'
+import { defineChain, isAddressEqual, keccak256, parseAbi, parseEventLogs, parseUnits, stringToHex, type Address, type Hex, type Log } from 'viem'
 
 export const ARC_TESTNET = defineChain({
   id: 5042002,
@@ -19,6 +19,14 @@ export type EscrowVersion = '1' | '2'
 
 export function validStakeUnits(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= MIN_STAKE_UNITS && value <= MAX_STAKE_UNITS
+}
+
+export function validStakeOffer(value: unknown, variable?: boolean): value is number {
+  return value === 0 || (variable ? validStakeUnits(value) : value === Number(ENTRY_AMOUNT))
+}
+
+export function parseStakeOffer(value: string) {
+  return /^\d{1,3}(?:\.\d{1,6})?$/.test(value) ? Number(parseUnits(value, USDC_DECIMALS)) : undefined
 }
 
 export const MATCHED_STAKE_ABI = parseAbi([

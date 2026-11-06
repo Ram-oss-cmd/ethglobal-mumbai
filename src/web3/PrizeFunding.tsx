@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { formatUnits, isAddressEqual, parseUnits, type Hex } from 'viem'
-import { arcTxUrl, ENTRY_AMOUNT, ESCROW_ABI, USDC_DECIMALS, validStakeUnits } from '../arc/chain.ts'
+import { formatUnits, isAddressEqual, type Hex } from 'viem'
+import { arcTxUrl, ENTRY_AMOUNT, ESCROW_ABI, parseStakeOffer, USDC_DECIMALS, validStakeOffer } from '../arc/chain.ts'
 import type { MatchResult, PrizeState, Seat } from '../competition/protocol.ts'
 import type { PrizeMember } from './api'
 import { arc, depositUSDC } from './wallet'
@@ -49,11 +49,12 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
     <section className="match-status" aria-label="Test USDC escrow">
       {prize?.stage === 'waiting' && prize.offers && (
         <StakeOffer key={prize.offers.units[seat]} offers={prize.offers} seat={seat} ready={ready}
-          opponentConnected={opponentConnected} onOffer={onOffer} onConfirm={onConfirm} />
+          variable={member.version === '2'} opponentConnected={opponentConnected} onOffer={onOffer} onConfirm={onConfirm} />
       )}
-      {prize?.stage === 'waiting' && !prize.offers && (
+      {prize?.stage === 'free' && !result && (
         <div className="match-actions">
-          <button type="button" disabled={ready} onClick={onReady}>{ready ? 'Entry confirmed' : 'Confirm prize entry'}</button>
+          <p>Free match · 0 test USDC</p>
+          <button type="button" disabled={ready} onClick={onReady}>{ready ? 'Ready' : 'Ready to play'}</button>
         </div>
       )}
       {prize?.stage === 'opening' && <p role="status">Opening escrow on Arc Testnet…</p>}
@@ -83,13 +84,13 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
   )
 }
 
-function StakeOffer({ offers, seat, ready, opponentConnected, onOffer, onConfirm }: {
-  offers: NonNullable<PrizeState['offers']>; seat: Seat; ready: boolean; opponentConnected: boolean
+function StakeOffer({ offers, seat, ready, variable, opponentConnected, onOffer, onConfirm }: {
+  offers: NonNullable<PrizeState['offers']>; seat: Seat; ready: boolean; variable: boolean; opponentConnected: boolean
   onOffer: (units: number) => void; onConfirm: (revision: number) => void
 }) {
   const ownOffer = offers.units[seat]
   const [draft, setDraft] = useState(() => formatUnits(BigInt(ownOffer), USDC_DECIMALS))
-  const units = /^\d{1,3}(?:\.\d{1,6})?$/.test(draft) ? Number(parseUnits(draft, USDC_DECIMALS)) : undefined
+  const units = parseStakeOffer(draft)
   const agreed = formatUnits(BigInt(Math.min(...offers.units)), USDC_DECIMALS)
   const opponent = formatUnits(BigInt(offers.units[seat === 0 ? 1 : 0]), USDC_DECIMALS)
 
@@ -97,17 +98,17 @@ function StakeOffer({ offers, seat, ready, opponentConnected, onOffer, onConfirm
     <div>
       <form className="match-actions" onSubmit={event => {
         event.preventDefault()
-        if (validStakeUnits(units) && units !== ownOffer) onOffer(units)
+        if (validStakeOffer(units, variable) && units !== ownOffer) onOffer(units)
       }}>
         <label htmlFor="stake-offer">Your offer in test USDC</label>
         <input id="stake-offer" inputMode="decimal" maxLength={10} value={draft} onChange={event => setDraft(event.target.value)} />
-        <button type="submit" disabled={!validStakeUnits(units) || units === ownOffer}>Update offer</button>
+        <button type="submit" disabled={!validStakeOffer(units, variable) || units === ownOffer}>Update offer</button>
       </form>
       <p>{opponentConnected ? `Opponent offers ${opponent} test USDC.` : 'Set your offer and share the invite.'}</p>
       <p>Matched stake <strong>{agreed} test USDC each</strong></p>
       <div className="match-actions">
         <button type="button" disabled={!opponentConnected || ready || units !== ownOffer} onClick={() => onConfirm(offers.revision)}>
-          {ready ? 'Stake confirmed' : `Confirm ${agreed} test USDC stake`}
+          {ready ? 'Stake confirmed' : agreed === '0' ? 'Confirm free match' : `Confirm ${agreed} test USDC stake`}
         </button>
       </div>
     </div>

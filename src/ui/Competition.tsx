@@ -12,7 +12,6 @@ import type { PrizeMember } from '../web3/api'
 
 type MatchState = Extract<ServerMessage, { type: 'state' }>
 type Join = Extract<ServerMessage, { type: 'joined' }>
-const validCode = /^[a-z0-9-]{3,32}$/
 
 function inviteUrl(code: string) {
   const url = new URL(location.href)
@@ -20,49 +19,9 @@ function inviteUrl(code: string) {
   return url
 }
 
-export default function Competition({ prize }: { prize?: PrizeMember }) {
-  const [code, setCode] = useState(() => (new URLSearchParams(location.search).get('match') ?? '').trim().toLowerCase())
-  const valid = validCode.test(code) && code.startsWith('prize-') === Boolean(prize)
-  const [matchId, setMatchId] = useState(() => valid ? code : '')
-
-  function enter(id: string) {
-    setMatchId(id)
-    setCode(id)
-    history.replaceState(null, '', inviteUrl(id))
-  }
-
-  function leave() {
-    setMatchId('')
-    const url = new URL(location.href)
-    url.searchParams.delete('match')
-    history.replaceState(null, '', url)
-  }
-
-  if (matchId) return <Match key={matchId} matchId={matchId} leave={leave} prize={prize} />
-  return (
-    <section className="lobby" aria-label={prize ? 'Prize lobby' : 'Two-player lobby'}>
-      <h2>{prize ? 'Prize lobby' : 'Casual duel'}</h2>
-      <p>{prize ? 'Share the prize code with a second verified wallet. Deposit test USDC and ready up when both deposits are confirmed.' :
-        'Open the same match code in two browser sessions. Ready up to start together.'}</p>
-      <form className="match-actions" onSubmit={event => {
-        event.preventDefault()
-        if (valid) enter(code)
-      }}>
-        <label className="sr-only" htmlFor="match-code">Match code</label>
-        <input id="match-code" value={code} maxLength={32} autoComplete="off" placeholder="Match code"
-          onChange={event => setCode(event.target.value.trim().toLowerCase())} />
-        <button type="submit" disabled={!valid}>Join match</button>
-        <button type="button" onClick={() => {
-          const bytes = crypto.getRandomValues(new Uint8Array(6))
-          const id = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
-          enter(prize ? `prize-${id}` : id)
-        }}>Create match</button>
-      </form>
-    </section>
-  )
-}
-
-function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; prize?: PrizeMember }) {
+export default function Competition({ matchId, leave, prize, initialStakeUnits }: {
+  matchId: string; leave: () => void; prize?: PrizeMember; initialStakeUnits?: number
+}) {
   const ws = useRef<WebSocket | null>(null)
   const [join, setJoin] = useState<Join | null>(null)
   const [snapshot, setSnapshot] = useState<MatchState | null>(null)
@@ -89,7 +48,8 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
       ws.current = socket
       socket.addEventListener('open', () => {
         if (lifetime.signal.aborted) return
-        socket.send(JSON.stringify({ type: 'join', matchId, resumeToken, prizeToken } satisfies ClientMessage))
+        socket.send(JSON.stringify({ type: 'join', matchId, resumeToken, prizeToken,
+          initialStakeUnits: resumeToken ? undefined : initialStakeUnits } satisfies ClientMessage))
       })
       socket.addEventListener('message', event => {
         if (lifetime.signal.aborted) return
@@ -143,7 +103,7 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
       ws.current?.close()
       ws.current = null
     }
-  }, [matchId, prizeToken, prizeWallet])
+  }, [matchId, prizeToken, prizeWallet, initialStakeUnits])
 
   function send(message: ClientMessage) {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(message))
@@ -184,7 +144,7 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
   return (
     <>
       <header className="match-bar">
-        <span>Match <strong>{matchId}</strong></span>
+        <span>Match <strong>{matchId}</strong>{!prize && ' · 0 test USDC'}</span>
         <div className="match-actions">
           <button type="button" onClick={async () => {
             try {

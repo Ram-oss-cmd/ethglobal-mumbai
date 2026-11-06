@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { formatUnits, type Address, type Hex } from 'viem'
-import { ARC_TESTNET, arcTxUrl, matchKeyFor } from '../arc/chain.ts'
+import { ARC_TESTNET, arcTxUrl, matchKeyFor, parseStakeOffer, validStakeOffer } from '../arc/chain.ts'
 import Competition from '../ui/Competition'
 import { WorldGate } from '../world/WorldGate'
 import type { WorldChallenge } from '../world/types.ts'
@@ -9,12 +9,26 @@ import DeferredClaim from './DeferredClaim'
 import { arc, checkedWallet, injectedWallet, refundUSDC, switchToArc } from './wallet'
 
 const STORAGE = 'wallet-rush:prize-session'
+const MATCH_CODE = /^[a-z0-9-]{3,32}$/
 type Session = { wallet: Address; token: string; expires: number }
+type Room = { id: string; initialStakeUnits?: number }
 
-export default function PrizeLobby({ account }: { account: Address }) {
+function stakeDraftKey(id: string, account: Address) {
+  return `wallet-rush:opening-stake:${account.toLowerCase()}:${id}`
+}
+
+export default function Multiplayer({ account }: { account: Address }) {
+  const [room, setRoom] = useState<Room | undefined>(() => {
+    const id = (new URLSearchParams(location.search).get('match') ?? '').trim().toLowerCase()
+    if (!MATCH_CODE.test(id)) return
+    const stored = sessionStorage.getItem(stakeDraftKey(id, account))
+    return { id, initialStakeUnits: stored === null ? undefined : Number(stored) }
+  })
+  const [joinCode, setJoinCode] = useState('')
+  const [offer, setOffer] = useState('0')
   const [config, setConfig] = useState<PrizeConfig>()
   const [chain, setChain] = useState<number>()
-  const [balance, setBalance] = useState<{ wallet: Address; value: string }>()
+  const [balance, setBalance] = useState<string | null>()
   const [session, setSession] = useState<Session | undefined>(() => {
     try { return JSON.parse(sessionStorage.getItem(STORAGE) ?? 'null') ?? undefined } catch { return undefined }
   })
@@ -30,7 +44,7 @@ export default function PrizeLobby({ account }: { account: Address }) {
     void prizeRequest<PrizeConfig>('config').then(config => {
       if (!lifetime.signal.aborted) setConfig(config)
     }).catch(() => {
-      if (!lifetime.signal.aborted) setError('The prize server is unavailable.')
+      if (!lifetime.signal.aborted) setError('The stake settings are unavailable.')
     })
     const { client, provider } = injectedWallet()
     let chainUpdated = false
@@ -50,9 +64,9 @@ export default function PrizeLobby({ account }: { account: Address }) {
   useEffect(() => {
     const lifetime = new AbortController()
     const refresh = () => void arc.getBalance({ address: account }).then(value => {
-      if (!lifetime.signal.aborted) setBalance({ wallet: account, value: formatUnits(value, ARC_TESTNET.nativeCurrency.decimals) })
+      if (!lifetime.signal.aborted) setBalance(formatUnits(value, ARC_TESTNET.nativeCurrency.decimals))
     }).catch(() => {
-      if (!lifetime.signal.aborted) setBalance(undefined)
+      if (!lifetime.signal.aborted) setBalance(null)
     })
     refresh()
     const poll = window.setInterval(refresh, 5_000)
@@ -95,35 +109,76 @@ export default function PrizeLobby({ account }: { account: Address }) {
     })
   }
 
+  function enter(next?: Room) {
+    const url = new URL(location.href)
+    if (next) url.searchParams.set('match', next.id)
+    else url.searchParams.delete('match')
+    if (next?.initialStakeUnits !== undefined) sessionStorage.setItem(stakeDraftKey(next.id, account), String(next.initialStakeUnits))
+    else if (!next && room) sessionStorage.removeItem(stakeDraftKey(room.id, account))
+    history.replaceState(null, '', url)
+    setRoom(next)
+    if (!next) setVerification(undefined)
+  }
+
   const onArc = chain === ARC_TESTNET.id
+  const variable = config?.escrowVersion === '2'
+  const stakeUnits = parseStakeOffer(offer)
+  const canCreate = validStakeOffer(stakeUnits, variable) && (stakeUnits === 0 || config?.enabled)
+  const stakedRoom = room?.id.startsWith('prize-') === true
   const eligible = session?.wallet.toLowerCase() === account.toLowerCase()
-  const member: PrizeMember | undefined = onArc && eligible && session && config?.enabled && config.escrowAddress
+  const member: PrizeMember | undefined = stakedRoom && onArc && eligible && session && config?.enabled && config.escrowAddress
     ? { address: account, token: session.token, escrow: config.escrowAddress, version: config.escrowVersion ?? '1' } : undefined
-  const worldGate = onArc && verification?.session.wallet.toLowerCase() === account.toLowerCase() ? verification : undefined
+  const worldGate = stakedRoom && onArc && verification?.session.wallet.toLowerCase() === account.toLowerCase() ? verification : undefined
 
   return (
     <>
-      <section className="lobby prize-panel" aria-label="Prize wallet and eligibility">
-        <h2>Arc Testnet prize matches</h2>
-        <p>{config?.escrowVersion === '2' ? 'Each player stakes the smaller of the two offers, after both confirm.' : 'Entry is 10 test USDC per player.'}
-          {' '}Maze points are a separate game score. Prize wallet addresses, match scores and replay inputs are public on Arkiv.</p>
-        {config?.worldEnvironment === 'staging' && <p>World ID staging · simulator proofs are for testing.</p>}
-        {config && !config.enabled && <p>Prize rooms await sponsor setup. Casual matches remain available.</p>}
+      <section className="lobby prize-panel" aria-label="Multiplayer lobby">
+        <h2>Multiplayer</h2>
+        {!room && (
+          <>
+            <form className="match-actions" onSubmit={event => {
+              event.preventDefault()
+              if (!canCreate || stakeUnits === undefined) return
+              const bytes = crypto.getRandomValues(new Uint8Array(6))
+              const code = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
+              enter({ id: stakeUnits === 0 ? code : `prize-${code}`, initialStakeUnits: variable && stakeUnits > 0 ? stakeUnits : undefined })
+            }}>
+              <label htmlFor="room-stake">Stake in test USDC</label>
+              <input id="room-stake" inputMode="decimal" maxLength={10} value={offer} onChange={event => setOffer(event.target.value)} />
+              <button type="submit" disabled={!canCreate}>Create match</button>
+            </form>
+            <p>Enter 0 to play free.{config?.enabled && (variable ? ' Staked matches accept 1–100 test USDC.' : ' The current escrow also supports 10 test USDC each.')}</p>
+            <form className="match-actions" onSubmit={event => {
+              event.preventDefault()
+              if (MATCH_CODE.test(joinCode)) enter({ id: joinCode })
+            }}>
+              <label className="sr-only" htmlFor="match-code">Match code</label>
+              <input id="match-code" value={joinCode} maxLength={32} autoComplete="off" placeholder="Match code"
+                onChange={event => setJoinCode(event.target.value.trim().toLowerCase())} />
+              <button type="submit" disabled={!MATCH_CODE.test(joinCode)}>Join match</button>
+            </form>
+          </>
+        )}
+        {stakedRoom && !member && <p>Switch to Arc Testnet and verify your eligibility to join this staked match.</p>}
+        {stakedRoom && config?.worldEnvironment === 'staging' && <p>World ID staging · simulator proofs are for testing.</p>}
+        {config && !config.enabled && <p>Staked matches await sponsor setup. A stake of 0 is available.</p>}
         <div className="match-actions">
           {!onArc && <button type="button" disabled={busy} onClick={() => perform(async () => {
             await switchToArc()
             setChain(await injectedWallet().client.getChainId())
           })}>Switch to Arc Testnet</button>}
-          {onArc && config?.worldEnvironment && (
+          {stakedRoom && onArc && config?.enabled && (
             <button type="button" disabled={busy || Boolean(worldGate)} onClick={verify}>
-              {eligible ? 'Refresh eligibility session' : 'Verify prize eligibility'}
+              {eligible ? 'Refresh eligibility session' : 'Verify eligibility'}
             </button>
           )}
+          {stakedRoom && !member && <button type="button" onClick={() => enter()}>Back to lobby</button>}
         </div>
-        <p className="wallet-address"><a href={new URL(`/address/${account}`, ARC_TESTNET.blockExplorers.default.url).href}>{account}</a>
-          <br />Arc Testnet balance · {balance?.wallet === account ? `${balance.value} test USDC` : 'Unavailable'}
+        <p className="wallet-address"><a href={new URL(`/address/${account}`, ARC_TESTNET.blockExplorers.default.url).href}
+          target="_blank" rel="noreferrer">{account}</a>
+          <br />Arc Testnet balance · {balance === undefined ? 'Loading…' : balance === null ? 'Unavailable' : `${balance} test USDC`}
           <br />Wallet network · {onArc ? 'Arc Testnet' : `Network ${chain ?? 'unknown'}`}</p>
-        {eligible && <p role="status">Wallet eligible for prize entry.</p>}
+        {stakedRoom && eligible && <p role="status">Wallet eligible for staked matches.</p>}
         {busy && <p role="status">Waiting for wallet or server confirmation…</p>}
         {error && <p role="alert">{error}</p>}
         {onArc && config?.escrowAddress && (
@@ -150,7 +205,7 @@ export default function PrizeLobby({ account }: { account: Address }) {
                   ? 'Timeout processed with deferred payouts' : 'Timeout processed')
               })
             }}>
-              <input aria-label="Expired prize match code" placeholder="prize-…" value={refundCode}
+              <input aria-label="Expired staked match code" placeholder="prize-…" value={refundCode}
                 onChange={event => setRefundCode(event.target.value.trim().toLowerCase())} />
               <button disabled={busy || !/^prize-[a-z0-9-]{3,26}$/.test(refundCode)}>Request timeout refund</button>
             </form>
@@ -158,7 +213,8 @@ export default function PrizeLobby({ account }: { account: Address }) {
           </details>
         )}
       </section>
-      {member && <Competition key={member.address} prize={member} />}
+      {room && (!stakedRoom || member) && <Competition key={room.id} matchId={room.id} initialStakeUnits={member?.version === '2' ? room.initialStakeUnits : undefined}
+        leave={() => enter()} prize={member} />}
     </>
   )
 }

@@ -21,7 +21,7 @@ npm run preview   # Serve the production build after npm run build
 
 ## Two-player competition
 
-1. Open the app in two MetaMask-enabled browser sessions. Select **Multiplayer → Casual duel** in each and join the same room ID, or share the invite link.
+1. Open the app in two MetaMask-enabled browser sessions. In **Multiplayer**, leave the stake at `0` and click **Create match** for free play. Share the invite link or have the other player enter the same code with **Join match**.
 2. Both players click **Ready**. Each client controls the left maze and sees the opponent on the right. Both runs start on the same tick with a shared seed and distinct, replayable pellet layouts.
 3. After the result, use the replay controls to reconstruct either player's run or download the match record.
 
@@ -64,7 +64,7 @@ Wallet Rush project files are under the [MIT License](LICENSE). Dependencies suc
 
 ## Sponsor demo
 
-See [manual setup and architecture](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. Use the [demo script and evidence checklist](docs/demo.md) to record the live flow. The [Arc Studio deployment record](docs/arc-deployment.md) links the verified testnet contract and receipt. The prize lobby stays closed until all sponsor settings are configured. The funded sponsor demo and public game URL are pending.
+See [manual setup and architecture](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. Choose a positive stake in **Multiplayer** to enter the funded flow when sponsor settings are configured. Use the [demo script and evidence checklist](docs/demo.md) to record the live flow. The [Arc Studio deployment record](docs/arc-deployment.md) links the verified testnet contract and receipt. The funded sponsor demo and public game URL are pending.
 
 The actual Arkiv writer address will be recorded after the first confirmed write. For now, pass your configured public writer address to the query below. It reads the latest immutable match summaries owned and created by that address directly from Rabdi.
 
