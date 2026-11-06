@@ -29,6 +29,26 @@ describe('deterministic match verification', () => {
     expect(verifyMatchRecord(record).map(state => [state.layout, state.banked])).toEqual([[layout, 3], [layout, 0]])
   })
 
+  it('preserves the dot return in an archived v7 match and keeps it gone in a new match', () => {
+    const matchId = 'classic-death'
+    const result = { kind: 'canceled', reason: 'disconnect', refundEligible: true } as const
+    const base = { matchId, seed: 1, engineVersion: 'wallet-rush-7', ticks: 1550, finalBanked: 0,
+      status: 'playing', outcome: 'canceled' } as const
+    const record: MatchRecord = { matchId, result, runs: [{
+      ...base, playerId: 'a', alternateLayout: false, inputs: [{ tick: 1, direction: 'up' }], banking: [],
+      deaths: [{ tick: 1364, lives: 2 }], digest: '46512a73528a67aaad79281bf791f556676df0e48e7878bba44d1164db622307',
+    }, {
+      ...base, playerId: 'b', alternateLayout: true, inputs: [], banking: [],
+      deaths: [{ tick: 1166, lives: 2 }, { tick: 1526, lives: 1 }],
+      digest: 'c8c455154532e47ba26ae6ef9e51ba98f529986175303585464f105fc53825e4',
+    }] }
+    const lost = { id: 249, x: 12, y: 26 }
+    expect(verifyMatchRecord(record)[0].dots).toContainEqual(lost)
+    const current = buildMatchRecord(matchId, ['a', 'b'], 1, [record.runs[0].inputs, []], [1550, 1550], result)
+    expect(current.runs[0].deaths).toEqual(record.runs[0].deaths)
+    expect(verifyMatchRecord(current)[0].dots).not.toContainEqual(lost)
+  })
+
   it('uses verified full-clear times and treats identical times as a draw', () => {
     const first = createGame(1)
     const second = createGame(1)

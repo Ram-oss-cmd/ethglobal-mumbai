@@ -44,7 +44,7 @@ describe('ghost behavior', () => {
     Object.assign(ghosts[0], createActor(collisionTile), { mode: 'scatter' })
     stepGame(state)
     expect(state).toMatchObject({ lives: 2, carried: 0, banked: 3 })
-    expect(state.queuedDots).toHaveLength(2)
+    expect(state.queuedDots).toHaveLength(0)
     expect(state.player).not.toEqual(createActor(START_TILE))
     expect(state.ghosts).toBe(ghosts)
     expect(ghosts[0].tile).toBe(collisionTile)
@@ -104,8 +104,8 @@ describe('ghost behavior', () => {
 
   it('preserves the legacy replay through power-up, collisions and dot respawn', () => {
     const moves = new Map<number, Direction>([[0, 'down'], [10, 'left']])
-    const first = createGame(7, false, 'legacy')
-    const second = createGame(7, false, 'legacy')
+    const first = createGame(7, false, 'legacy', true)
+    const second = createGame(7, false, 'legacy', true)
     let sawPower = false
     let sawLoss = false
     for (let tick = 0; tick < 2_500; tick++) {

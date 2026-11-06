@@ -5,7 +5,7 @@
 Complete the [sponsor setup](sponsor-setup.md) and open two browser profiles with different funded Arc Testnet player accounts. Keep the referee account separate. Set `WORLD_ENVIRONMENT=staging` for the official World simulator and label it on screen. Use a fresh browser profile without a wallet for public replay.
 
 1. Cancel one World prompt, then verify successfully. For the duplicate check, attempt verification using the same World identity and a different wallet in the same tournament. Confirm that wallet cannot enter.
-2. For a predictable winner, have player A press down to bank three points and stay in the vault. Player B can collect or lose lives while leaving their banked score at zero. Use clips from practice or another round to show a lost dot returning and a frightened ghost being eaten.
+2. For a predictable winner, have player A press down to bank three points and stay in the vault. Player B can collect or lose lives while leaving their banked score at zero. Use clips from practice or another round to show carried points disappearing on a hit and a frightened ghost being eaten.
 3. Test a draw separately. Both players can bank three and wait out the clock. Check that each gets 10 test USDC back.
 4. Test cancellation separately. Start a fully funded match, close one active player's tab, and wait past the reconnect grace. Check that both deposits are returned and no winner is recorded. For the independent timeout path, leave one match partially funded and use the recovery form after its deposit deadline.
 

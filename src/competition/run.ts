@@ -1,6 +1,6 @@
 import { createGame, type GameState, RUN_MS, stepGame, TICK_MS } from '../game/index.ts'
 import { DIRECTIONS } from '../game/maze.ts'
-import { ENGINE_LAYOUTS, ENGINE_VERSION, type EngineVersion, type RunRecord } from './protocol.ts'
+import { ENGINE_RULES, ENGINE_VERSION, type EngineVersion, type RunRecord } from './protocol.ts'
 
 export function replayRun(
   seed: number,
@@ -20,7 +20,8 @@ export function replayRun(
     previous = input.tick
   }
 
-  const state = createGame(seed, alternateLayout, ENGINE_LAYOUTS[version])
+  const { layout, restoreLostDots } = ENGINE_RULES[version]
+  const state = createGame(seed, alternateLayout, layout, restoreLostDots)
   let index = 0
   onTick?.(state, 0)
   for (let tick = 1; tick <= ticks; tick++) {

@@ -23,9 +23,9 @@ function unbankedIds(state: GameState) {
   return [...state.dots, ...state.queuedDots, ...state.carriedDots].map(dot => dot.id)
 }
 
-function expectConserved(state: GameState) {
+function expectConserved(state: GameState, lost = 0) {
   const ids = unbankedIds(state)
-  expect(ids.length + state.banked).toBe(TOTAL_DOTS)
+  expect(ids.length + state.banked + lost).toBe(TOTAL_DOTS)
   expect(new Set(ids).size).toBe(ids.length)
   expect(state.carriedDots.length).toBe(state.carried)
   const occupied = [...state.dots, ...state.queuedDots].map(dot => dot.y * WIDTH + dot.x)
@@ -70,29 +70,31 @@ describe('collecting and banking', () => {
     expect(state).toMatchObject({ carried: 0, banked: 3 })
   })
 
-  it('keeps banked points and permanently removes their identities after death', () => {
+  it('keeps banked points and permanently removes carried dots after death', () => {
     const state = createGame(5)
     advance(state, 58, 'down')
     const bankedIds = state.carriedDots.map(dot => dot.id)
     stepGame(state)
     state.player = createActor(TUNNEL_ROW * WIDTH + 5)
     advance(state, 34, 'left')
-    expect(state.carried).toBe(2)
+    const lostIds = state.carriedDots.map(dot => dot.id)
+    expect(lostIds).toHaveLength(2)
+    const remaining = structuredClone(state.dots)
     loseLife(state)
     expect(state).toMatchObject({ lives: 2, carried: 0, banked: 3 })
     expect(state.player).not.toEqual(createActor(START_TILE))
-    expect(state.queuedDots).toHaveLength(2)
-    expectConserved(state)
+    expect(state.queuedDots).toHaveLength(0)
     advance(state, DEATH_PAUSE_MS / TICK_MS)
     expect(state.player).toEqual(createActor(START_TILE))
     expect(state.queuedDots).toHaveLength(0)
-    for (const id of bankedIds) expect(unbankedIds(state)).not.toContain(id)
-    expectConserved(state)
+    expect(state.dots).toEqual(remaining)
+    for (const id of [...bankedIds, ...lostIds]) expect(unbankedIds(state)).not.toContain(id)
+    expectConserved(state, lostIds.length)
   })
 
-  it('randomizes only available traversed cells and releases at reproducible seeded times', () => {
+  it('reproduces the randomized respawn schedule for archived runs', () => {
     function run(seed: number) {
-      const state = createGame(seed)
+      const state = createGame(seed, false, 'classic', true)
       state.ghosts = []
       state.player = createActor(TUNNEL_ROW * WIDTH + 4)
       state.route = [state.player.tile]
@@ -132,35 +134,31 @@ describe('collecting and banking', () => {
     }
   })
 
-  it('conserves unique dots across repeated losses after banking with either seat layout', () => {
+  it('never returns dots across repeated losses after banking with either seat layout', () => {
     for (let seed = 0; seed < 32; seed++) {
       const state = createGame(seed, seed % 2 === 1)
       state.ghosts = []
       advance(state, 58, 'down')
       const bankedIds = new Set(state.carriedDots.map(dot => dot.id))
       stepGame(state)
+      const lostIds = new Set<number>()
       for (let life = 2; life >= 0; life--) {
         state.player = createActor(TUNNEL_ROW * WIDTH + [5, 8, 26][2 - life])
         advance(state, 34, 'left')
         expect(state.carried).toBeGreaterThan(0)
-        const lost = state.carriedDots.map(dot => dot.id)
+        for (const dot of state.carriedDots) lostIds.add(dot.id)
         loseLife(state)
         expect(state).toMatchObject({ lives: life, banked: 3, carried: 0 })
-        expect(state.queuedDots.map(dot => dot.id)).toEqual(lost)
-        for (const dot of state.queuedDots) {
-          expect(state.route).toContain(dot.y * WIDTH + dot.x)
-          expect(dot.atMs - state.elapsedMs).toBeGreaterThanOrEqual(600)
-          expect(dot.atMs - state.elapsedMs).toBeLessThanOrEqual(900)
-        }
+        expect(state.queuedDots).toHaveLength(0)
         advance(state, DEATH_PAUSE_MS / TICK_MS)
         expect(state.queuedDots).toHaveLength(0)
-        expect(unbankedIds(state).some(id => bankedIds.has(id))).toBe(false)
-        expectConserved(state)
+        expect(unbankedIds(state).some(id => bankedIds.has(id) || lostIds.has(id))).toBe(false)
+        expectConserved(state, lostIds.size)
       }
     }
   })
 
-  it('releases final-life respawns without changing the terminal run clock', () => {
+  it('keeps lost dots gone after the final life and freezes the terminal run clock', () => {
     const state = createGame(2)
     state.lives = 1
     advance(state, 34, 'down')
@@ -172,11 +170,11 @@ describe('collecting and banking', () => {
     expect(state).toMatchObject({ elapsedMs: 340 + DEATH_PAUSE_MS, lives: 0, carried: 0, status: 'out-of-lives' })
     expect(state.player).toEqual(hitPosition)
     expect(state.queuedDots).toHaveLength(0)
-    expectConserved(state)
+    expectConserved(state, 2)
   })
 
-  it('holds a due dot until its reserved tile is vacant', () => {
-    const state = createGame(2)
+  it('holds a due dot until its reserved tile is vacant in archived runs', () => {
+    const state = createGame(2, false, 'classic', true)
     advance(state, 17, 'down')
     loseLife(state)
     expect(state.queuedDots).toHaveLength(1)

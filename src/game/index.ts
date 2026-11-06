@@ -24,6 +24,7 @@ export type RunStatus = 'playing' | 'timeout' | 'out-of-lives' | 'full-clear'
 
 export interface GameState extends CoinState {
   layout: MazeId
+  restoreLostDots: boolean
   elapsedMs: number
   lives: number
   status: RunStatus
@@ -38,11 +39,12 @@ export interface GameState extends CoinState {
   waveMs: number
 }
 
-export function createGame(seed: number, alternateLayout = false, layout: MazeId = 'classic'): GameState {
+export function createGame(seed: number, alternateLayout = false, layout: MazeId = 'classic', restoreLostDots = false): GameState {
   const maze = MAZES[layout]
   return {
     ...createCoins(seed, alternateLayout, maze),
     layout,
+    restoreLostDots,
     elapsedMs: 0,
     lives: 3,
     status: 'playing',
@@ -60,7 +62,11 @@ export function createGame(seed: number, alternateLayout = false, layout: MazeId
 
 export function loseLife(state: GameState) {
   state.lives--
-  scheduleLostDots(state, state.elapsedMs, TICK_MS, MAZES[state.layout])
+  if (state.restoreLostDots) scheduleLostDots(state, state.elapsedMs, TICK_MS, MAZES[state.layout])
+  else {
+    state.carriedDots = []
+    state.carried = 0
+  }
   state.requestedDirection = null
   state.respawnAtMs = Math.min(RUN_MS, state.elapsedMs + DEATH_PAUSE_MS)
 }
@@ -110,7 +116,7 @@ export function stepGame(state: GameState, input?: Direction) {
     return player.direction
   }, true, {
     onCross(_, to) {
-      trackRoute(state, to, maze)
+      if (state.restoreLostDots) trackRoute(state, to, maze)
       if (to === maze.vaultTile) {
         bankDots(state, maze)
         if (state.banked === maze.totalDots) {

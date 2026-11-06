@@ -38,7 +38,7 @@ An active player's disconnect pauses both clocks for up to 10 seconds of cumulat
 - Click **Start practice**. Steer with the arrow keys, WASD, or the on-screen pad on touch devices. Tap before a turn to buffer it.
 - Move **down** from spawn for a quick first deposit. Crossing the green line at the bottom transfers all carried points. Ghosts stay outside the vault, and the clock keeps running inside.
 - The reference maze has a side tunnel with two mouths and four blinking Ethereum diamonds near its corners. Each corner has two seeded slots, with different picks for the two duel seats. Catching a frightened ghost freezes movement for 350 ms while preserving the remaining power-up.
-- A hit costs one life and drops your carried points. Everyone holds their position for 1.5 seconds, then the wallet respawns and the ghosts resume from their positions. The match timer keeps running. Dots are scheduled to return to random spots on your route after staggered 600–900 ms delays. An occupied spot waits until clear. Banked points stay secured for the run.
+- A hit costs one life and permanently removes your carried dots for the run. Everyone holds their position for 1.5 seconds, then the wallet respawns and the ghosts resume from their positions. The match timer keeps running. Banked points stay secured for the run.
 
 ## Checks
 
@@ -52,7 +52,7 @@ git diff --check
 
 ## Engine and artwork
 
-`src/game/` owns the rules. `createGame(seed)` creates a fresh run, and `stepGame(state, direction?)` advances it by one 10 ms tick. Replays need the seed, layout variant, matching engine version, and direction changes indexed by tick. The app verifies and renders versions 5 through 7 with their original layouts. Use commit `0685a24` for previously exported `wallet-rush-2` records, `856e559` for `wallet-rush-3`, or `87ef940` for `wallet-rush-4`. The same inputs reproduce the scores, ghost states, and respawn schedule. Terminal score and time stay frozen while any scheduled dots finish returning.
+`src/game/` owns the rules. `createGame(seed)` creates a fresh run, and `stepGame(state, direction?)` advances it by one 10 ms tick. Replays need the seed, layout variant, matching engine version, and direction changes indexed by tick. The app verifies and renders versions 5 through 8 with their original rules, including dot returns in versions 5 through 7. Use commit `0685a24` for previously exported `wallet-rush-2` records, `856e559` for `wallet-rush-3`, or `87ef940` for `wallet-rush-4`.
 
 Phaser renders the actors and pickups from the simulation. The current maze traces the supplied reference into SVG outlines with one stroke width per board. Its collision grid follows the reference lanes and adds a vault below the bottom edge. React displays the HUD and run controls. The dog and ghost sprites are in `src/ui/assets/`. To swap artwork, update the texture imports in `src/ui/arcade.ts` and the life icon in `src/ui/CabinetHud.tsx`.
 
