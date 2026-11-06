@@ -61,6 +61,16 @@ describe('collecting and banking', () => {
     expectConserved(state)
   })
 
+  it('keeps points carried when reversing just before the vault line', () => {
+    const state = createGame(1)
+    advance(state, 58, 'down')
+    advance(state, 8, 'up')
+    expect(state.player.y).toBeCloseTo(16)
+    expect(state).toMatchObject({ carried: 3, banked: 0 })
+    advance(state, 9, 'down')
+    expect(state).toMatchObject({ carried: 0, banked: 3 })
+  })
+
   it('keeps banked points and permanently removes their identities after death', () => {
     const state = createGame(5)
     advance(state, 58, 'down')

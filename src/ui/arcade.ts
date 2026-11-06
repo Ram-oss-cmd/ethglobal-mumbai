@@ -185,6 +185,8 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
   let spritesVisible = false
   let changed = false
   let receivedAt = 0
+  let lastBanked = 0
+  let bankFlashUntil = 0
   let draw: ((now: number) => void) | undefined
 
   const game = new Phaser.Game({
@@ -206,6 +208,8 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
         drawMaze(this)
         const dots = this.add.graphics()
         const pellets = this.add.graphics()
+        const bankFlash = this.add.rectangle((VAULT.x + 0.5) * TILE, VAULT.y * TILE, TILE - 2, 5, 0xeaffd9)
+          .setVisible(false)
         const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id))
         const player = actor(this, 'wallet')
 
@@ -216,6 +220,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
             changed = false
           }
           pellets.setAlpha(reducedEffects || Math.floor(now / 250) % 2 === 0 ? 1 : 0)
+          bankFlash.setVisible(!reducedEffects && now < bankFlashUntil)
           const duration = previous ? state.elapsedMs - previous.elapsedMs : 0
           const ratio = duration > 0 ? Math.min(1, (now - receivedAt) / Math.min(duration, 80)) : 1
           const { elapsedMs, frightenedUntilMs } = state
@@ -250,6 +255,9 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
       spritesVisible = visible
       changed = true
       receivedAt = performance.now()
+      if (next.banked > lastBanked) bankFlashUntil = receivedAt + 350
+      else if (next.banked < lastBanked) bankFlashUntil = 0
+      lastBanked = next.banked
     },
     destroy: () => game.destroy(true),
   }
