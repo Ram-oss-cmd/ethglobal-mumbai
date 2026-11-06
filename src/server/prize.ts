@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { isAddress, type Address, type Hex } from 'viem'
@@ -12,19 +12,32 @@ import { createWalletAuth } from './walletAuth.ts'
 
 const API = '/api/prize/'
 const MAX_BODY = 16_384
+type PrizeEntry = { scope: string; matchId: string; wallets: string[] }
 
 export function reservePrizeEntry(path: string, scope: string, matchId: string, wallets: [Address, Address]) {
   mkdirSync(dirname(path), { recursive: true })
   const ledger = readFileSync(path, { encoding: 'utf8', flag: 'a+' })
   const entrants = wallets.map(wallet => wallet.toLowerCase())
   for (const line of ledger.split('\n').filter(Boolean)) {
-    const entry = JSON.parse(line) as { scope: string; matchId: string; wallets: string[] }
+    const entry = JSON.parse(line) as PrizeEntry
     if (entry.scope === scope && (entry.matchId === matchId || entry.wallets.some(wallet => entrants.includes(wallet)))) {
       throw new Error('A wallet or match ID has already been used for this tournament.')
     }
   }
   // Reserve before submitting any transaction so competing rooms cannot reuse a wallet.
   appendFileSync(path, JSON.stringify({ scope, matchId, wallets: entrants }) + '\n', { mode: 0o600, flush: true })
+}
+
+/** Remove only the reservation made for an escrow opening that did not reach chain. */
+export function releasePrizeEntry(path: string, scope: string, matchId: string, wallets: [Address, Address]) {
+  const entrants = wallets.map(wallet => wallet.toLowerCase())
+  const ledger = readFileSync(path, { encoding: 'utf8', flag: 'a+' })
+  const kept = ledger.split('\n').filter(Boolean).filter(line => {
+    const entry = JSON.parse(line) as PrizeEntry
+    return entry.scope !== scope || entry.matchId !== matchId || entry.wallets.length !== entrants.length ||
+      entry.wallets.some((wallet, index) => wallet !== entrants[index])
+  })
+  writeFileSync(path, kept.length ? `${kept.join('\n')}\n` : '', { mode: 0o600, flush: true })
 }
 
 async function body(req: IncomingMessage) {
@@ -77,6 +90,12 @@ export function createPrize() {
       try {
         return await escrow.openMatch(matchId, wallets, stakeUnits)
       } catch {
+        // Never free a room after an uncertain RPC error if the escrow was actually opened.
+        try {
+          if (!await escrow.matchWasOpened(matchId, wallets, stakeUnits)) releasePrizeEntry(ledger, scope, matchId, wallets)
+        } catch {
+          // Preserve the reservation when Arc cannot prove whether a broadcast reached chain.
+        }
         throw new Error('Arc escrow could not be confirmed. Ask the organizer to inspect the match before retrying.')
       }
     },

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { expect, it, vi } from 'vitest'
-import { createPrize, reservePrizeEntry } from './prize.ts'
+import { createPrize, releasePrizeEntry, reservePrizeEntry } from './prize.ts'
 
 it('enforces one match reservation per wallet and scope across separate calls', () => {
   const dir = mkdtempSync(join(tmpdir(), 'wallet-rush-entry-'))
@@ -18,6 +18,23 @@ it('enforces one match reservation per wallet and scope across separate calls', 
     reservePrizeEntry(file, 'tournament', 'match-one', [a, b])
     expect(() => reservePrizeEntry(file, 'tournament', 'match-two', [c, a])).toThrow('already been used')
     expect(() => reservePrizeEntry(file, 'other-tournament', 'match-two', [c, a])).not.toThrow()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+it('releases only an unconfirmed escrow reservation so those players can retry', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wallet-rush-entry-'))
+  try {
+    const file = join(dir, 'entries.jsonl')
+    const a = privateKeyToAccount(generatePrivateKey()).address
+    const b = privateKeyToAccount(generatePrivateKey()).address
+    const c = privateKeyToAccount(generatePrivateKey()).address
+    reservePrizeEntry(file, 'tournament', 'match-one', [a, b])
+    reservePrizeEntry(file, 'tournament', 'match-two', [c, privateKeyToAccount(generatePrivateKey()).address])
+    releasePrizeEntry(file, 'tournament', 'match-one', [a, b])
+    expect(() => reservePrizeEntry(file, 'tournament', 'match-three', [a, b])).not.toThrow()
+    expect(() => reservePrizeEntry(file, 'tournament', 'match-four', [c, a])).toThrow('already been used')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

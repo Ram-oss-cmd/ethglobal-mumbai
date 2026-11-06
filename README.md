@@ -68,8 +68,8 @@ Wallet marks identify their respective providers. [MetaMask brand kit](https://m
 
 See [manual setup and architecture](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. Choose a positive stake in **Multiplayer** to enter the funded flow when sponsor settings are configured. Use the [demo script and evidence checklist](docs/demo.md) to record the live flow. The [Arc Studio deployment record](docs/arc-deployment.md) links the verified testnet contract and receipt. The funded sponsor demo and public game URL are pending.
 
-The actual Arkiv writer address will be recorded after the first confirmed write. For now, pass your configured public writer address to the query below. It reads the latest immutable match summaries owned and created by that address directly from Rabdi.
+The public Arkiv writer is `0xE87Ce94DC2a2Ef8ccad03a7FD3cBE9d3ec74Bc53`. It has no archived matches yet. After the first confirmed archive transaction, use the direct query below to read its immutable match summaries from Rabdi.
 
 ```sh
-node --experimental-strip-types --input-type=module -e "import { createHistoryReader } from './src/history/reader.ts'; const rows = await createHistoryReader(process.argv[1], process.env.ARKIV_ACCESS_KEY).recent(); console.log(rows.entities)" YOUR_PUBLIC_WRITER_ADDRESS
+node --experimental-strip-types --input-type=module -e "import { createHistoryReader } from './src/history/reader.ts'; const rows = await createHistoryReader(process.argv[1], process.env.ARKIV_ACCESS_KEY).recent(); console.log(rows.entities)" 0xE87Ce94DC2a2Ef8ccad03a7FD3cBE9d3ec74Bc53
 ```

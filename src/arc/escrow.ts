@@ -146,6 +146,12 @@ export function createEscrow() {
       const [match, stake] = await Promise.all([readMatch(matchKey, block.number), readStake(matchKey, block.number)])
       return stake === stakeUnits && matchCanStart(match, wallets, block.timestamp)
     },
+    async matchWasOpened(matchId: string, wallets: WalletPair, stakeUnits: number) {
+      await assertTestnet()
+      const block = await publicClient.getBlock()
+      const [match, stake] = await Promise.all([readMatch(matchKeyFor(matchId), block.number), readStake(matchKeyFor(matchId), block.number)])
+      return stake === stakeUnits && participantsMatch(match, wallets)
+    },
     settle(matchKey: Hex, record: MatchRecord, wallets: WalletPair, stakeUnits: number) {
       return serialize(async () => {
         await assertTestnet()

@@ -1,4 +1,4 @@
-import { parseUnits, verifyTypedData, type Address } from 'viem'
+import { formatUnits, parseUnits, verifyTypedData, type Address } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { buildMatchRecord } from '../competition/replay.ts'
@@ -23,6 +23,7 @@ describe('Arc escrow application adapter', () => {
     expect(ARC_TESTNET.id).toBe(5042002)
     expect(ARC_TESTNET.nativeCurrency.decimals).toBe(18)
     expect(ENTRY_AMOUNT).toBe(parseUnits('10', USDC_DECIMALS))
+    expect(formatUnits(60_000_000n, USDC_DECIMALS)).toBe('60')
   })
 
   it('starts only with the exact wallets, both deposits, and enough refund window', () => {

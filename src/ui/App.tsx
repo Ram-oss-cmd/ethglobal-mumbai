@@ -1,6 +1,6 @@
 import { type CSSProperties, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { formatUnits, type Address } from 'viem'
-import { ARC_TESTNET } from '../arc/chain.ts'
+import { ARC_TESTNET, USDC_DECIMALS } from '../arc/chain.ts'
 import { useArcBalance } from '../web3/useArcBalance'
 import { injectedWallet, PRIZE_SESSION_KEY, selectedWalletAccount, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from '../web3/wallet'
 import { BOARD_ASPECT, createArcade, steeringKey, type Hud } from './arcade'
@@ -124,7 +124,7 @@ export default function App() {
         <details className="wallet-menu" key={mode}>
           <summary><span>{account.slice(0, 6)}…{account.slice(-4)}</span>
             {multiplayer && <span className="wallet-menu-balance">{balance === undefined ? 'Loading…' : balance === null ? 'Balance unavailable'
-              : `${formatUnits(balance / 10n ** 14n, 4)} test USDC`}</span>}
+              : `${formatUnits(balance, USDC_DECIMALS)} test USDC`}</span>}
           </summary>
           <div className="wallet-menu-panel match-actions" aria-label="Wallet settings">
             <label htmlFor="player-wallet"><span className="sr-only">Player </span>Wallet</label>

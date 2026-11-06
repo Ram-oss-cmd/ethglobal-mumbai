@@ -1,6 +1,6 @@
 # Wallet Rush Arkiv schema
 
-The Rabdi entity schema is `wallet-rush.matches.v1`. Each entity is created by the configured testnet writer and is immutable after creation. Its lifetime is 30 days.
+The Rabdi entity schema is `wallet-rush.matches.v1`. Each entity is created by the configured testnet writer and is immutable after creation. Its lifetime is one year.
 
 | Field | Type | Purpose |
 | --- | --- | --- |

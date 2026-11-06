@@ -55,3 +55,4 @@
 - [x] Moved the sad portrait above the dog and restored the two-dot return sprite. Edge verified the visual sequence, and simulation tests confirmed the faster trip home and archived return speed. All 60 tests, lint, and build passed.
 - [x] Enlarged the ghost portraits by about 10% and matched the sad portrait to the dog's sprite dimensions. Edge verified both sizes and the compact returning dots. All 60 tests, lint, and build passed.
 - [x] Centered Elon Sad over the dog and extended the overlay by 100 ms. Edge verified the placement and extra display time while the ghost returned. All 60 tests, lint, and build passed.
+- [x] Corrected six-decimal Arc USDC display, made failed escrow openings safely retryable without freeing uncertain onchain matches, and extended immutable Arkiv replay retention to one year. Targeted Arc and prize tests, full 61-test suite, lint, type checks, and production build passed.

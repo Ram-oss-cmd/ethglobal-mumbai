@@ -42,7 +42,7 @@ export function createHistoryWriter() {
           settlementTx,
           publishedAt: u64(Date.now()),
           replay,
-        }, { expiration: ExpirationTime.fromDays(30), flags: { readonly: true } })
+        }, { expiration: ExpirationTime.fromDays(365), flags: { readonly: true } })
         return { entityKey, transactionHash: txHash }
       })
       queue = write.catch(() => {})
