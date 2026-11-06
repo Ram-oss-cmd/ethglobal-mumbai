@@ -4,8 +4,8 @@ import { referenceWalls } from './referenceWalls'
 
 export const TILE_WIDTH = 60
 export const TILE_HEIGHT = 54
-export const WALL_STROKE = 3
-export const GHOST_SIZE = 54
+export const WALL_STROKE = 2
+export const GHOST_SIZE = 58
 
 const LANE_WIDTH = 92
 const insetX = (LANE_WIDTH - TILE_WIDTH) / 2
@@ -125,7 +125,7 @@ function referenceBoard(): ReturnType<typeof geometry> {
     if (closed) points[points.length - 1] = points[0]
     return points
   })
-  return { width, height, aspect: width / height, tileHeight: TILE_WIDTH, playerSize: 76, wallColor: '#0080f8',
+  return { width, height, aspect: width / height, tileHeight: TILE_WIDTH, playerSize: 82, wallColor: '#0080f8',
     gate: [project(103, 109), project(120, 109)], wallPaths, vault: maze.vault }
 }
 

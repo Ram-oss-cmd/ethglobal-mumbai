@@ -60,7 +60,7 @@ function addWalls(parent: HTMLDivElement, layout: typeof board) {
   svg.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`)
   svg.classList.add('maze-walls')
   // Cap the screen-space stroke on small boards before opposing wall edges can merge.
-  svg.style.strokeWidth = `min(${WALL_STROKE}px, .26cqw)`
+  svg.style.strokeWidth = `min(${WALL_STROKE}px, .20cqw)`
   function path(data: string, color: string) {
     const line = document.createElementNS(ns, 'path')
     line.setAttribute('d', data)
@@ -119,23 +119,23 @@ function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObje
   for (const dot of state.dots) {
     const x = (dot.x + 0.5) * TILE_WIDTH
     const y = (dot.y + 0.5) * TILE_HEIGHT
-    dots.fillCircle(x, y, 4.5)
+    dots.fillCircle(x, y, 6)
   }
   pellets.clear()
   for (const pellet of state.pellets) {
     const x = (pellet.x + 0.5) * TILE_WIDTH
     const y = (pellet.y + 0.5) * TILE_HEIGHT
 
-    pellets.fillStyle(0x627eea, 0.35).fillCircle(x, y, 26)
-    pellets.fillStyle(0x9ec7ff, 0.4).fillCircle(x, y, 18)
+    pellets.fillStyle(0x627eea, 0.35).fillCircle(x, y, 29)
+    pellets.fillStyle(0x9ec7ff, 0.4).fillCircle(x, y, 20)
 
-    pellets.fillStyle(0xffffff).fillTriangle(x, y - 22, x - 15, y + 1, x, y + 8)
-    pellets.fillStyle(0xdbe9ff).fillTriangle(x, y - 22, x + 15, y + 1, x, y + 8)
+    pellets.fillStyle(0xffffff).fillTriangle(x, y - 25, x - 17, y + 1, x, y + 9)
+    pellets.fillStyle(0xdbe9ff).fillTriangle(x, y - 25, x + 17, y + 1, x, y + 9)
 
-    pellets.fillStyle(0x94c5ff).fillTriangle(x - 15, y + 5, x, y + 12, x, y + 22)
-    pellets.fillStyle(0x5b93f8).fillTriangle(x + 15, y + 5, x, y + 12, x, y + 22)
+    pellets.fillStyle(0x94c5ff).fillTriangle(x - 17, y + 6, x, y + 14, x, y + 25)
+    pellets.fillStyle(0x5b93f8).fillTriangle(x + 17, y + 6, x, y + 14, x, y + 25)
 
-    pellets.fillStyle(0xffffff, 0.95).fillRect(x - 11, y + 2.5, 22, 2)
+    pellets.fillStyle(0xffffff, 0.95).fillRect(x - 12, y + 3, 24, 2)
   }
 }
 
@@ -183,6 +183,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
   let bankFlashUntil = 0
   let draw: ((now: number) => void) | undefined
   let playerFacing: 'left' | 'right' = 'left'
+  const starRadius = playerSize * .575
 
   const domStar = document.createElement('video')
   domStar.src = starVideo
@@ -192,6 +193,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
   domStar.playsInline = true
   domStar.setAttribute('aria-hidden', 'true')
   domStar.className = 'star-video-overlay'
+  domStar.style.width = `${2 * starRadius / WIDTH * 100}%`
   domStar.style.display = 'none'
   parent.appendChild(domStar)
 
@@ -253,9 +255,11 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           player(pos, `${isEaten ? 'hit' : 'normal'}_${playerFacing}`, spritesVisible ? (dimPlayer ? 0.6 : 1) : 0)
 
           if (!reducedEffects && isEaten && spritesVisible) {
+            const x = Phaser.Math.Clamp((pos.x + 0.5) * TILE_WIDTH, starRadius, WIDTH - starRadius)
+            const y = Math.max(starRadius, (pos.y + 0.5) * TILE_HEIGHT - playerSize * .8)
             domStar.style.display = 'block'
-            domStar.style.left = `${(pos.x + 0.5) * TILE_WIDTH / WIDTH * 100}%`
-            domStar.style.top = `${((pos.y + 0.5) * TILE_HEIGHT - 52) / HEIGHT * 100}%`
+            domStar.style.left = `${x / WIDTH * 100}%`
+            domStar.style.top = `${y / HEIGHT * 100}%`
             if (domStar.paused) void domStar.play().catch(() => {})
           } else {
             domStar.style.display = 'none'
