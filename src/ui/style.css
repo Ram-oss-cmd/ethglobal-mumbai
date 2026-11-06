@@ -63,6 +63,10 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 .match-actions input { background: #111; min-width: 0; }
 .lobby { margin: 40px auto; max-width: 620px; }
 .lobby p { color: #b5ada5; line-height: 1.5; }
+.wallet-entry { margin-top: clamp(64px, 16vh, 160px); text-align: center; }
+.wallet-entry h1 { margin: 0; color: var(--yellow); font-size: clamp(2rem, 7vw, 3rem); }
+.wallet-entry .match-actions { justify-content: center; }
+.wallet-entry [role="alert"] { color: #ff6262; }
 .wallet-address { overflow-wrap: anywhere; }
 .prize-panel details { margin-top: 16px; }
 .prize-panel summary { cursor: pointer; }

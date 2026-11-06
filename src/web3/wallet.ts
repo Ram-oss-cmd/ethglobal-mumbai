@@ -7,8 +7,16 @@ import { ARC_TESTNET, ARC_USDC, ENTRY_AMOUNT, ESCROW_ABI, readDeferredPayouts } 
 export const arc = createPublicClient({ chain: ARC_TESTNET, transport: http(undefined, { timeout: 10_000 }) })
 
 export function injectedWallet() {
-  const provider = (window as Window & { ethereum?: EIP1193Provider }).ethereum
-  if (!provider) throw new Error('Install MetaMask or open the game in an injected EVM wallet.')
+  let provider: EIP1193Provider | undefined
+  function onAnnouncement(event: Event) {
+    const detail = (event as CustomEvent<{ info: { rdns: string }; provider: EIP1193Provider }>).detail
+    if (detail?.info?.rdns === 'io.metamask') provider ??= detail.provider
+  }
+  window.addEventListener('eip6963:announceProvider', onAnnouncement)
+  window.dispatchEvent(new Event('eip6963:requestProvider'))
+  window.removeEventListener('eip6963:announceProvider', onAnnouncement)
+
+  if (!provider) throw new Error('Open Wallet Rush in a browser with the current MetaMask extension installed.')
   return { provider, client: createWalletClient({ chain: ARC_TESTNET, transport: custom(provider) }) }
 }
 

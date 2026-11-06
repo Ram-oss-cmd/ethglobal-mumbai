@@ -36,7 +36,7 @@ export function readDeferredPayouts(logs: Log[], escrow: Address, matchKey: Hex)
     logs: logs.filter(log => isAddressEqual(log.address, escrow)),
   }).filter(event => event.args.matchId === matchKey).map(event => ({
     player: event.args.player,
-    amount: event.args.amount.toString(), // Keep raw USDC units JSON-safe for WebSocket snapshots.
+    amount: event.args.amount.toString(),
   }))
 }
 

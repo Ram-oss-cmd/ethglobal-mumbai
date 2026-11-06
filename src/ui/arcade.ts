@@ -35,7 +35,6 @@ export type Hud = {
   powerSeconds: number
 }
 
-/** Draws the contour of the solid maze tiles without changing collisions. */
 function drawMaze(scene: Phaser.Scene) {
   const texture = scene.textures.createCanvas('walls', WIDTH, HEIGHT)!
   const ctx = texture.context
@@ -142,7 +141,6 @@ function actor(scene: Phaser.Scene, texture: string) {
     const y = Math.round((position.y + 0.5) * TILE)
     const flip = position.direction === 'left'
     image.setPosition(x, y).setTexture(nextTexture).setAlpha(alpha).setFlipX(flip)
-    // The second sprite supplies the half that crosses the opposite tunnel edge.
     wrap.setVisible(x < TILE / 2 || x > WIDTH - TILE / 2)
       .setPosition(x + (x < WIDTH / 2 ? WIDTH : -WIDTH), y)
       .setTexture(nextTexture).setAlpha(alpha).setFlipX(flip)
@@ -288,7 +286,6 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
     const target = now - startedAt
     if (state.elapsedMs + state.terminalRespawnMs + TICK_MS > target) return
 
-    // Pending dots still animate after the scoreboard freezes.
     while (state.elapsedMs + state.terminalRespawnMs + TICK_MS <= target &&
            (state.status === 'playing' || state.queuedDots.length > 0)) {
       stepGame(state, input)

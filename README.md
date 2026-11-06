@@ -2,7 +2,7 @@
 
 Collect. Escape. Bank. Win.
 
-An original arcade maze game for ETHGlobal Mumbai 2026. Practice is a solo, 90-second run with three lives. It runs locally with no accounts or credentials.
+An original arcade maze game for ETHGlobal Mumbai 2026. Connect MetaMask to enter the arcade. Single player is a solo, 90-second run with three lives and uses virtual maze points only.
 
 ## Run locally
 
@@ -21,11 +21,11 @@ npm run preview   # Serve the production build after npm run build
 
 ## Two-player competition
 
-1. Open the app in two browser sessions. Select **Two players** in each and join the same room ID, or share the invite link.
+1. Open the app in two MetaMask-enabled browser sessions. Select **Multiplayer → Casual duel** in each and join the same room ID, or share the invite link.
 2. Both players click **Ready**. Each client controls the left maze and sees the opponent on the right. Both runs start on the same tick with a shared seed and distinct, replayable pellet layouts.
 3. After the result, use the replay controls to reconstruct either player's run or download the match record.
 
-For two laptops on the same trusted Wi-Fi or LAN, run `npm run dev -- --host 0.0.0.0` on one laptop and leave it running. On both laptops, open the **Network** URL Vite prints, such as `http://192.168.1.23:5173`. Use `ipconfig` on the host to find its IPv4 address if needed. If Windows Firewall prompts, allow Node.js on private networks. Create the match on one laptop, share the room code or invite link, and click **Ready** on both. For two sessions on the same laptop, use `http://localhost:5173` in a regular window and a private window. [Vite LAN options](https://vite.dev/config/server-options.html#server-host), [Windows ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig)
+For two laptops on the same trusted Wi-Fi or LAN, run `npm run dev -- --host 0.0.0.0` on one laptop and leave it running. On both laptops, open the **Network** URL Vite prints, such as `http://192.168.1.23:5173`. Use `ipconfig` on the host to find its IPv4 address if needed. If Windows Firewall prompts, allow Node.js on private networks. Create the match on one laptop, share the room code or invite link, and click **Ready** on both. For two sessions on the same laptop, use `http://localhost:5173` in two browser profiles with MetaMask. [Vite LAN options](https://vite.dev/config/server-options.html#server-host), [Windows ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig)
 
 The Node WebSocket server runs alongside Vite in dev and preview. For a custom host, set the server process's `WALLET_RUSH_ORIGIN` to the exact browser origin and forward WebSocket upgrades on `/ws`.
 

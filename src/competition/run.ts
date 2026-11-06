@@ -2,7 +2,6 @@ import { createGame, type GameState, RUN_MS, stepGame, TICK_MS } from '../game/i
 import { DIRECTIONS } from '../game/maze.ts'
 import type { RunRecord } from './protocol.ts'
 
-/** Reconstruct one run using the exact input applied on each server tick. */
 export function replayRun(
   seed: number,
   inputs: RunRecord['inputs'],

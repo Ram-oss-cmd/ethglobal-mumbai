@@ -41,7 +41,7 @@ export default function Competition({ prize }: { prize?: PrizeMember }) {
   if (matchId) return <Match key={matchId} matchId={matchId} leave={leave} prize={prize} />
   return (
     <section className="lobby" aria-label={prize ? 'Prize lobby' : 'Two-player lobby'}>
-      <h2>{prize ? 'Prize lobby' : 'Two players'}</h2>
+      <h2>{prize ? 'Prize lobby' : 'Casual duel'}</h2>
       <p>{prize ? 'Share the prize code with a second verified wallet. Deposit test USDC and ready up when both deposits are confirmed.' :
         'Open the same match code in two browser sessions. Ready up to start together.'}</p>
       <form className="match-actions" onSubmit={event => {

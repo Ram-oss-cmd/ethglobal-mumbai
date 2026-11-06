@@ -1,4 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import type { Address } from 'viem'
+import { injectedWallet } from '../web3/wallet'
 import { BOARD_ASPECT, createArcade, steeringKey, type Hud } from './arcade'
 import { ArenaFooter, endings, initialHud, Scoreboard, TouchControls } from './CabinetHud'
 import Competition from './Competition'
@@ -10,31 +12,95 @@ type Mode = 'practice' | 'casual' | 'prize' | 'history'
 
 export default function App() {
   const replayId = /^\/replay\/([a-z0-9-]{3,32})\/?$/.exec(location.pathname)?.[1]
+  const [wallet, setWallet] = useState<ReturnType<typeof injectedWallet>>()
+  const [account, setAccount] = useState<Address>()
+  const [connecting, setConnecting] = useState(false)
+  const [walletError, setWalletError] = useState('')
   const [mode, setMode] = useState<Mode>(() => {
     const match = new URLSearchParams(location.search).get('match')
     if (replayId || location.pathname === '/history') return 'history'
     if (match?.startsWith('prize-')) return 'prize'
     return match ? 'casual' : 'practice'
   })
+
+  useEffect(() => {
+    let active: ReturnType<typeof injectedWallet>
+    try { active = wallet ?? injectedWallet() } catch { return }
+    let initial = true
+    const changed = (addresses: Address[]) => {
+      initial = false
+      setAccount(addresses[0])
+    }
+    const disconnected = () => changed([])
+    active.provider.on('accountsChanged', changed)
+    active.provider.on('disconnect', disconnected)
+    void active.client.getAddresses().then(addresses => {
+      if (initial) changed(addresses)
+    }, () => {})
+    return () => {
+      initial = false
+      active.provider.removeListener('accountsChanged', changed)
+      active.provider.removeListener('disconnect', disconnected)
+    }
+  }, [wallet])
+
+  async function connect() {
+    setConnecting(true)
+    setWalletError('')
+    try {
+      const active = wallet ?? injectedWallet()
+      const [selected] = await active.client.requestAddresses()
+      if (!selected) throw new Error('Select an account in MetaMask to continue.')
+      setWallet(active)
+      setAccount(selected)
+    } catch (error) {
+      setWalletError(error instanceof Error ? error.message.split('\n')[0] : 'MetaMask connection failed.')
+    } finally {
+      setConnecting(false)
+    }
+  }
+
   function changeMode(next: Mode) {
     if (next === mode) return
     history.replaceState(null, '', next === 'history' ? '/history' : '/')
     setMode(next)
   }
 
+  if (!account && mode !== 'history') return (
+    <main className="cabinet">
+      <section className="lobby wallet-entry" aria-labelledby="wallet-entry-title">
+        <h1 id="wallet-entry-title">Wallet Rush</h1>
+        <p>Connect your wallet to enter the arcade.</p>
+        <div className="match-actions">
+          <button type="button" className="play" disabled={connecting} onClick={() => void connect()}>
+            {connecting ? 'Connecting…' : 'Connect MetaMask'}
+          </button>
+          <button type="button" disabled>Rabby Wallet</button>
+          <button type="button" disabled>Coinbase Wallet</button>
+          <button type="button" disabled>Trust Wallet</button>
+        </div>
+        {walletError && <p role="alert">{walletError}</p>}
+      </section>
+    </main>
+  )
+
+  const multiplayer = mode === 'casual' || mode === 'prize'
   return (
-    <main className={`cabinet${mode === 'casual' || mode === 'prize' ? ' cabinet-live' : ''}`}>
+    <main className={`cabinet${multiplayer ? ' cabinet-live' : ''}`}>
       <h1 className="sr-only">Wallet Rush</h1>
-      <nav className="mode-switch" aria-label="Game mode">
-        <button type="button" aria-pressed={mode === 'practice'} onClick={() => changeMode('practice')}>Practice</button>
-        <button type="button" aria-pressed={mode === 'casual'} onClick={() => changeMode('casual')}>Two players</button>
-        <button type="button" aria-pressed={mode === 'prize'} onClick={() => changeMode('prize')}>Prize match</button>
+      {account ? <nav className="mode-switch" aria-label="Game mode">
+        <button type="button" aria-pressed={mode === 'practice'} onClick={() => changeMode('practice')}>Single player</button>
+        <button type="button" aria-pressed={multiplayer} onClick={() => { if (!multiplayer) changeMode('casual') }}>Multiplayer</button>
         <button type="button" aria-pressed={mode === 'history'} onClick={() => changeMode('history')}>Match history</button>
-      </nav>
+      </nav> : <a href="/">Back to Wallet Rush</a>}
+      {multiplayer && <nav className="mode-switch" aria-label="Multiplayer mode">
+        <button type="button" aria-pressed={mode === 'casual'} onClick={() => changeMode('casual')}>Casual duel</button>
+        <button type="button" aria-pressed={mode === 'prize'} onClick={() => changeMode('prize')}>Prize match</button>
+      </nav>}
       <Suspense fallback={<p role="status">Loading…</p>}>
         {mode === 'practice' && <Practice />}
         {mode === 'casual' && <Competition />}
-        {mode === 'prize' && <PrizeLobby />}
+        {mode === 'prize' && account && <PrizeLobby key={account} account={account} />}
         {mode === 'history' && <History key={replayId ?? 'history'} matchId={replayId} />}
       </Suspense>
     </main>

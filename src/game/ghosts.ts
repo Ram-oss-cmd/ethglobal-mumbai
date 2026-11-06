@@ -42,7 +42,6 @@ const exits = new Map(corridors.map(tile => [
   }),
 ]))
 
-// Shortest paths follow the same tunnel and vault rules as actor movement.
 const routes = new Map(corridors.map(target => {
   const distances = new Uint16Array(cells.length).fill(0xffff)
   const queue = [target]

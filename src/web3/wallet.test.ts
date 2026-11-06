@@ -2,11 +2,36 @@ import { encodeAbiParameters, encodeEventTopics } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ARC_TESTNET, ENTRY_AMOUNT, ESCROW_ABI, matchKeyFor } from '../arc/chain.ts'
-import { arc, checkedWallet, claimUSDC, depositUSDC, refundUSDC, switchToArc } from './wallet.ts'
+import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, refundUSDC, switchToArc } from './wallet.ts'
+
+function stubWallet(request: (args: { method: string }) => Promise<unknown>) {
+  const browser = new EventTarget()
+  announceWallet(browser, 'io.metamask', { request })
+  vi.stubGlobal('window', browser)
+}
+
+function announceWallet(browser: EventTarget, rdns: string, provider: { request: unknown }) {
+  browser.addEventListener('eip6963:requestProvider', () => {
+    browser.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: { info: { rdns }, provider } }))
+  })
+}
 
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+})
+
+it('uses the announced MetaMask provider when another wallet owns window.ethereum', async () => {
+  const account = privateKeyToAccount(generatePrivateKey()).address
+  const otherWallet = { isMetaMask: true, request: vi.fn() }
+  const metaMask = { request: vi.fn(async () => [account]) }
+  const browser = Object.assign(new EventTarget(), { ethereum: otherWallet })
+  vi.stubGlobal('window', browser)
+  announceWallet(browser, 'io.rabby', otherWallet)
+  expect(() => injectedWallet()).toThrow('MetaMask extension')
+  announceWallet(browser, 'io.metamask', metaMask)
+  await expect(injectedWallet().client.requestAddresses()).resolves.toEqual([account])
+  expect(otherWallet.request).not.toHaveBeenCalled()
 })
 
 it('checks the real provider chain and selected account before permitting a wallet operation', async () => {
@@ -22,7 +47,7 @@ it('checks the real provider chain and selected account before permitting a wall
     }
     throw new Error('Unexpected wallet call')
   })
-  vi.stubGlobal('window', { ethereum: { request } })
+  stubWallet(request)
   await expect(checkedWallet(account)).rejects.toThrow('Arc Testnet')
   await switchToArc()
   expect(Number(chain)).toBe(ARC_TESTNET.id)
@@ -38,12 +63,12 @@ it('only confirms a claim when the receipt proves payment to the connected walle
   const other = '0x2000000000000000000000000000000000000000'
   const hash = matchKeyFor('claim-test')
   const onHash = vi.fn()
-  vi.stubGlobal('window', { ethereum: { request: async ({ method }: { method: string }) => {
+  stubWallet(async ({ method }) => {
     if (method === 'eth_accounts') return [account]
     if (method === 'eth_chainId') return '0x4cef52'
     if (method === 'eth_sendTransaction') return hash
     throw new Error('Unexpected wallet call')
-  } } })
+  })
   vi.spyOn(arc, 'getChainId').mockResolvedValue(ARC_TESTNET.id)
   vi.spyOn(arc, 'simulateContract').mockResolvedValue({
     result: undefined, request: { address: escrow, account, abi: ESCROW_ABI, functionName: 'claim' },
@@ -70,12 +95,12 @@ it.each([
   const matchId = matchKeyFor('intended-match')
   const originalHash = matchKeyFor('submitted-hash')
   const transactionHash = matchKeyFor('mined-hash')
-  vi.stubGlobal('window', { ethereum: { request: async ({ method }: { method: string }) => {
+  stubWallet(async ({ method }) => {
     if (method === 'eth_accounts') return [account]
     if (method === 'eth_chainId') return '0x4cef52'
     if (method === 'eth_sendTransaction') return originalHash
     throw new Error('Unexpected wallet call')
-  } } })
+  })
   vi.spyOn(arc, 'getChainId').mockResolvedValue(ARC_TESTNET.id)
   vi.spyOn(arc, 'readContract').mockResolvedValue(ENTRY_AMOUNT)
   vi.spyOn(arc, 'simulateContract').mockResolvedValue({ request: {

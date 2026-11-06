@@ -11,9 +11,8 @@ import { arc, checkedWallet, injectedWallet, refundUSDC, switchToArc } from './w
 const STORAGE = 'wallet-rush:prize-session'
 type Session = { wallet: Address; token: string; expires: number }
 
-export default function PrizeLobby() {
+export default function PrizeLobby({ account }: { account: Address }) {
   const [config, setConfig] = useState<PrizeConfig>()
-  const [account, setAccount] = useState<Address>()
   const [chain, setChain] = useState<number>()
   const [balance, setBalance] = useState<{ wallet: Address; value: string }>()
   const [session, setSession] = useState<Session | undefined>(() => {
@@ -26,15 +25,6 @@ export default function PrizeLobby() {
   const [refundHash, setRefundHash] = useState<Hex>()
   const [refundStatus, setRefundStatus] = useState('')
 
-  async function syncWallet(request = false) {
-    const { client } = injectedWallet()
-    const [addresses, activeChain] = await Promise.all([
-      request ? client.requestAddresses() : client.getAddresses(), client.getChainId(),
-    ])
-    setAccount(addresses[0])
-    setChain(activeChain)
-  }
-
   useEffect(() => {
     const lifetime = new AbortController()
     void prizeRequest<PrizeConfig>('config').then(config => {
@@ -42,21 +32,22 @@ export default function PrizeLobby() {
     }).catch(() => {
       if (!lifetime.signal.aborted) setError('The prize server is unavailable.')
     })
-    let provider: ReturnType<typeof injectedWallet>['provider'] | undefined
-    try { provider = injectedWallet().provider } catch { /* Wallets are optional until prize entry. */ }
-    const changed = () => { void syncWallet().catch(() => setError('Could not read the injected wallet.')) }
-    provider?.on('accountsChanged', changed)
-    provider?.on('chainChanged', changed)
-    if (provider) changed()
+    const { client, provider } = injectedWallet()
+    let chainUpdated = false
+    const changed = (chainId: string) => { chainUpdated = true; setChain(Number(chainId)) }
+    provider.on('chainChanged', changed)
+    void client.getChainId().then(activeChain => {
+      if (!lifetime.signal.aborted && !chainUpdated) setChain(activeChain)
+    }, () => {
+      if (!lifetime.signal.aborted && !chainUpdated) setError('Could not read the wallet network.')
+    })
     return () => {
       lifetime.abort()
-      provider?.removeListener('accountsChanged', changed)
-      provider?.removeListener('chainChanged', changed)
+      provider.removeListener('chainChanged', changed)
     }
   }, [])
 
   useEffect(() => {
-    if (!account) return
     const lifetime = new AbortController()
     const refresh = () => void arc.readContract({
       address: ARC_USDC, abi: erc20Abi, functionName: 'balanceOf', args: [account],
@@ -94,7 +85,6 @@ export default function PrizeLobby() {
   }
 
   function verify() {
-    if (!account) return
     perform(async () => {
       const wallet = await checkedWallet(account)
       const challenge = await prizeRequest<{ message: string; nonce: string }>('wallet-challenge', { wallet: account })
@@ -108,10 +98,10 @@ export default function PrizeLobby() {
   }
 
   const onArc = chain === ARC_TESTNET.id
-  const eligible = account && session?.wallet.toLowerCase() === account.toLowerCase()
-  const member: PrizeMember | undefined = account && onArc && eligible && session && config?.enabled && config.escrowAddress
+  const eligible = session?.wallet.toLowerCase() === account.toLowerCase()
+  const member: PrizeMember | undefined = onArc && eligible && session && config?.enabled && config.escrowAddress
     ? { address: account, token: session.token, escrow: config.escrowAddress } : undefined
-  const worldGate = onArc && verification?.session.wallet.toLowerCase() === account?.toLowerCase() ? verification : undefined
+  const worldGate = onArc && verification?.session.wallet.toLowerCase() === account.toLowerCase() ? verification : undefined
 
   return (
     <>
@@ -121,23 +111,22 @@ export default function PrizeLobby() {
         {config?.worldEnvironment === 'staging' && <p>World ID staging · simulator proofs are for testing.</p>}
         {config && !config.enabled && <p>Prize rooms await sponsor setup. Casual matches remain available.</p>}
         <div className="match-actions">
-          <button type="button" disabled={busy} onClick={() => perform(() => syncWallet(true))}>Connect wallet</button>
-          {account && !onArc && <button type="button" disabled={busy} onClick={() => perform(async () => {
+          {!onArc && <button type="button" disabled={busy} onClick={() => perform(async () => {
             await switchToArc()
-            await syncWallet()
+            setChain(await injectedWallet().client.getChainId())
           })}>Switch to Arc Testnet</button>}
-          {account && onArc && config?.worldEnvironment && (
+          {onArc && config?.worldEnvironment && (
             <button type="button" disabled={busy || Boolean(worldGate)} onClick={verify}>
               {eligible ? 'Refresh eligibility session' : 'Verify prize eligibility'}
             </button>
           )}
         </div>
-        {account && <p className="wallet-address">{account}<br />{onArc ? 'Arc Testnet' : `Network ${chain ?? 'unknown'}`}
-          {' · '}{balance?.wallet === account ? `${balance.value} test USDC` : 'Arc USDC balance unavailable'}</p>}
+        <p className="wallet-address">{account}<br />{onArc ? 'Arc Testnet' : `Network ${chain ?? 'unknown'}`}
+          {' · '}{balance?.wallet === account ? `${balance.value} test USDC` : 'Arc USDC balance unavailable'}</p>
         {eligible && <p role="status">Wallet eligible for prize entry.</p>}
         {busy && <p role="status">Waiting for wallet or server confirmation…</p>}
         {error && <p role="alert">{error}</p>}
-        {account && onArc && config?.escrowAddress && (
+        {onArc && config?.escrowAddress && (
           <DeferredClaim key={`${account}:${config.escrowAddress}`} account={account} escrow={config.escrowAddress} />
         )}
         {worldGate && <WorldGate challenge={worldGate.challenge}
@@ -147,7 +136,7 @@ export default function PrizeLobby() {
             setVerification(undefined)
             void prizeRequest('world-cancel', { nonce: worldGate.challenge.rp_context.nonce }, worldGate.session.token).catch(() => {})
           }} />}
-        {account && onArc && config?.escrowAddress && (
+        {onArc && config?.escrowAddress && (
           <details>
             <summary>Recover test USDC from an expired match</summary>
             <form className="match-actions" onSubmit={event => {
