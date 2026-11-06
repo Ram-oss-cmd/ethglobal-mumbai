@@ -263,10 +263,11 @@ function resultText(result: MatchResult, seat: Seat) {
   return `${outcome} · ${result.reason === 'full-clear' ? 'Full clear' : 'Higher banked score'}`
 }
 
-function Replay({ record, seat, leave }: { record: MatchRecord; seat: Seat; leave: () => void }) {
+export function Replay({ record, seat, leave }: { record: MatchRecord; seat: Seat; leave: () => void }) {
   const run = record.runs[seat]
   const [tick, setTick] = useState(run.ticks)
-  const view = useMemo(() => replayRun(run.seed, run.inputs.filter(input => input.tick <= tick), tick), [run, tick])
+  const view = useMemo(() =>
+    replayRun(run.seed, run.inputs.filter(input => input.tick <= tick), tick, undefined, run.alternateLayout), [run, tick])
   return (
     <section className="replay">
       <MatchBoard title={`Replay · Seat ${seat + 1}`} run={view} />

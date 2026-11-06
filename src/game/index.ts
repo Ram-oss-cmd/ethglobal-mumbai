@@ -37,9 +37,9 @@ export interface GameState extends CoinState {
   waveMs: number
 }
 
-export function createGame(seed: number): GameState {
+export function createGame(seed: number, alternateLayout = false): GameState {
   return {
-    ...createCoins(seed),
+    ...createCoins(seed, alternateLayout),
     elapsedMs: 0,
     lives: 3,
     status: 'playing',

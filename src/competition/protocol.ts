@@ -1,6 +1,6 @@
 import type { Direction, GameState } from '../game/index.ts'
 
-export const ENGINE_VERSION = 'wallet-rush-3'
+export const ENGINE_VERSION = 'wallet-rush-4'
 export const MATCH_SOCKET_PATH = '/ws'
 export type Seat = 0 | 1
 export type RunView = Pick<GameState,
@@ -8,7 +8,7 @@ export type RunView = Pick<GameState,
   'dots' | 'pellets' | 'frightenedUntilMs' | 'invulnerableUntilMs' | 'respawnAtMs' | 'ghostPauseUntilMs'>
 
 export type ClientMessage =
-  | { type: 'join'; matchId: string; resumeToken?: string }
+  | { type: 'join'; matchId: string; resumeToken?: string; prizeToken?: string }
   | { type: 'ready' }
   | { type: 'input'; direction: Direction }
 
@@ -22,6 +22,7 @@ export interface RunRecord {
   matchId: string
   playerId: string
   seed: number
+  alternateLayout: boolean
   engineVersion: typeof ENGINE_VERSION
   ticks: number
   inputs: { tick: number; direction: Direction }[]
@@ -39,10 +40,21 @@ export interface MatchRecord {
   runs: [RunRecord, RunRecord]
 }
 
+export interface PrizeState {
+  stage: 'waiting' | 'opening' | 'funding' | 'settling' | 'settled' | 'error'
+  matchKey?: `0x${string}`
+  openTx?: `0x${string}`
+  settlementTx?: `0x${string}`
+  depositDeadline?: number
+  refundAfter?: number
+  historyKey?: string
+  message?: string
+}
+
 export type ServerMessage =
   | { type: 'joined'; matchId: string; seat: Seat; resumeToken: string }
   | { type: 'state'; phase: 'lobby' | 'running' | 'paused' | 'finished'; tick: number;
-      seats: [PlayerView | null, PlayerView | null]; reconnectBy?: number; result?: MatchResult }
+      seats: [PlayerView | null, PlayerView | null]; reconnectBy?: number; result?: MatchResult; prize?: PrizeState }
   | { type: 'record'; record: MatchRecord }
   | { type: 'error'; message: string; fatal?: boolean }
 

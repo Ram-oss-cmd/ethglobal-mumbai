@@ -8,6 +8,7 @@ export function replayRun(
   inputs: RunRecord['inputs'],
   ticks: number,
   onTick?: (state: GameState, tick: number) => void,
+  alternateLayout = false,
 ) {
   if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff ||
       !Number.isInteger(ticks) || ticks < 0 || ticks > RUN_MS / TICK_MS ||
@@ -19,7 +20,7 @@ export function replayRun(
     previous = input.tick
   }
 
-  const state = createGame(seed)
+  const state = createGame(seed, alternateLayout)
   let index = 0
   onTick?.(state, 0)
   for (let tick = 1; tick <= ticks; tick++) {

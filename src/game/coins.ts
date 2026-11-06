@@ -29,10 +29,15 @@ for (const tile of COLLECTIBLE_TILES) {
   pelletZones[zone].push(tile)
 }
 
-export function createCoins(seed: number): CoinState {
-  // One seeded pick per quadrant spreads the power-ups equally in both players' mazes.
+export function createCoins(seed: number, alternateLayout = false): CoinState {
+  // The second seat picks a different tile in every quadrant without changing the common game seed.
   const layout = { randomState: seed >>> 0 }
-  const pelletTiles = pelletZones.map(zone => zone[randomIndex(layout, zone.length)])
+  const alternate = { randomState: (seed ^ 0x52555348) >>> 0 }
+  const pelletTiles = pelletZones.map(zone => {
+    const first = randomIndex(layout, zone.length)
+    const index = alternateLayout ? (first + 1 + randomIndex(alternate, zone.length - 1)) % zone.length : first
+    return zone[index]
+  })
   return {
     carried: 0,
     banked: 0,

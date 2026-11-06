@@ -4,14 +4,16 @@ import type { IncomingMessage } from 'node:http'
 import { isIP } from 'node:net'
 import type { Duplex } from 'node:stream'
 import { isDeepStrictEqual } from 'node:util'
+import type { Address } from 'viem'
 import { WebSocket, WebSocketServer } from 'ws'
 import { createGame, stepGame, TICK_MS, type Direction, type GameState } from '../game/index.ts'
 import { DIRECTIONS } from '../game/maze.ts'
 import {
   MATCH_SOCKET_PATH, type ClientMessage, type MatchRecord, type MatchResult, type PlayerView,
-  type RunRecord, type Seat, type ServerMessage,
+  type PrizeState, type RunRecord, type Seat, type ServerMessage,
 } from '../competition/protocol.ts'
 import { buildMatchRecord, decideMatch, verifyMatchRecord } from '../competition/replay.ts'
+import type { PrizeCompetition } from './prizeCompetition.ts'
 
 const SEATS = [0, 1] as const
 const MATCH_ID = /^[a-z0-9-]{3,32}$/i
@@ -51,6 +53,9 @@ type Room = {
   lastSnapshotTick: number
   finishedAt?: number
   record?: MatchRecord
+  prize?: PrizeState
+  prizeChecking?: boolean
+  settlePrize?: (record: MatchRecord, now: number) => void
 }
 
 function parseMessage(raw: string): ClientMessage | undefined {
@@ -65,9 +70,11 @@ function parseMessage(raw: string): ClientMessage | undefined {
   }
   if (message.type !== 'join' || typeof message.matchId !== 'string' || !MATCH_ID.test(message.matchId)) return
   const matchId = message.matchId.toLowerCase()
-  if (keys === 2) return { type: 'join', matchId }
-  if (keys === 3 && typeof message.resumeToken === 'string' && TOKEN.test(message.resumeToken)) {
-    return { type: 'join', matchId, resumeToken: message.resumeToken }
+  const { resumeToken, prizeToken } = message
+  if (resumeToken !== undefined && (typeof resumeToken !== 'string' || !TOKEN.test(resumeToken))) return
+  if (prizeToken !== undefined && (typeof prizeToken !== 'string' || !TOKEN.test(prizeToken))) return
+  if (keys === 2 + Number(resumeToken !== undefined) + Number(prizeToken !== undefined)) {
+    return { type: 'join', matchId, resumeToken, prizeToken }
   }
 }
 
@@ -82,7 +89,7 @@ function reject(socket: WebSocket, message: string, fatal = false) {
   if (fatal) socket.close(1008)
 }
 
-function allowedOrigin(request: IncomingMessage, configuredOrigin?: string) {
+export function allowedOrigin(request: IncomingMessage, configuredOrigin?: string) {
   const { origin, host } = request.headers
   if (!origin) return false
   if (configuredOrigin) return origin === configuredOrigin
@@ -132,6 +139,7 @@ function publish(room: Room, now: number) {
     seats: [playerView(room.seats[0], room.phase), playerView(room.seats[1], room.phase)],
     reconnectBy: room.phase === 'paused' ? Date.now() + Math.max(0, reconnectDeadline(room) - now) : undefined,
     result: room.record?.result,
+    prize: room.prize,
   }
   for (const player of room.seats) {
     if (player?.socket) send(player.socket, message)
@@ -161,6 +169,7 @@ function finish(room: Room, now: number, result: MatchResult) {
   for (const player of [first, second]) {
     if (player.socket) send(player.socket, { type: 'record', record: room.record })
   }
+  room.settlePrize?.(room.record, now)
 }
 
 function runDueTicks(room: Room, now: number) {
@@ -192,7 +201,9 @@ function runDueTicks(room: Room, now: number) {
 
 export function attachCompetition(
   server: EventEmitter,
-  { now: testClock, origin = process.env.WALLET_RUSH_ORIGIN }: { now?: () => number; origin?: string } = {},
+  { now: testClock, origin = process.env.WALLET_RUSH_ORIGIN, prize }: {
+    now?: () => number; origin?: string; prize?: PrizeCompetition
+  } = {},
 ) {
   const now = testClock ?? (() => performance.now())
   const wss = new WebSocketServer({ noServer: true, maxPayload: 512, perMessageDeflate: false })
@@ -200,9 +211,66 @@ export function attachCompetition(
   const joining = new Map<WebSocket, number>()
   const awaitingPong = new Set<WebSocket>()
 
+  function prizeWallets(room: Room): [Address, Address] | undefined {
+    const [a, b] = room.seats
+    if (room.prize && a && b) return [a.id as Address, b.id as Address]
+  }
+
+  function preparePrize(room: Room) {
+    const wallets = prizeWallets(room)
+    if (!prize || room.prize?.stage !== 'waiting' || !wallets || !room.seats.every(member => member?.socket)) return
+    room.prize.stage = 'opening'
+    void prize.open(room.id, wallets).then(opened => {
+      const { transactionHash, ...details } = opened
+      room.prize = { stage: 'funding', ...details, openTx: transactionHash }
+      room.settlePrize = (record, time) => {
+        room.prize = { ...room.prize, stage: 'settling' }
+        publish(room, time)
+        void prize.complete(opened.matchKey, record, wallets).then(result => {
+          room.prize = { ...room.prize, ...result, stage: result.settlementTx ? 'settled' : 'error' }
+          publish(room, now())
+        }).catch(() => {
+          room.prize = { ...room.prize, stage: 'error', message: 'Settlement failed. Use the onchain timeout refund when available.' }
+          publish(room, now())
+        })
+      }
+      publish(room, now())
+    }).catch(error => {
+      room.prize = { stage: 'error', message: error instanceof Error ? error.message : 'Escrow could not be opened.' }
+      publish(room, now())
+    })
+  }
+
+  function tryStart(room: Room, time: number) {
+    if (room.phase !== 'lobby' || !room.seats.every(member => member?.socket && member.ready)) return
+    function start() {
+      room.phase = 'running'
+      room.nextTickAt = now() + TICK_MS
+    }
+    if (!room.prize) return start()
+    const wallets = prizeWallets(room)
+    if (!prize || !wallets || !room.prize.matchKey || room.prize.stage !== 'funding' || room.prizeChecking) return
+    room.prizeChecking = true
+    const checkedRoom = room.prize
+    void prize.canStart(checkedRoom.matchKey!, wallets).catch(() => false).then(funded => {
+      room.prizeChecking = false
+      if (rooms.get(room.id) !== room || room.phase !== 'lobby' ||
+          !room.seats.every(member => member?.socket && member.ready)) return
+      if (funded) {
+        checkedRoom.message = undefined
+        start()
+      } else {
+        for (const seat of room.seats) if (seat) seat.ready = false
+        checkedRoom.message = 'Both Arc deposits must be confirmed and the refund deadline must leave enough time.'
+      }
+      publish(room, Math.max(time, now()))
+    })
+  }
+
   function advanceRoom(room: Room, time: number) {
     if (room.phase === 'lobby') {
-      if (time - room.createdAt >= LOBBY_MS) {
+      const expired = room.prize?.refundAfter ? Date.now() >= room.prize.refundAfter * 1000 : time - room.createdAt >= LOBBY_MS
+      if (expired) {
         for (const player of room.seats) {
           if (player?.socket) reject(player.socket, 'This lobby expired.', true)
         }
@@ -212,7 +280,8 @@ export function attachCompetition(
       let changed = false
       for (const seat of SEATS) {
         const departed = room.seats[seat]?.disconnectedAt
-        if (departed !== undefined && time - departed >= GRACE_MS) {
+        if (departed !== undefined && time - departed >= GRACE_MS &&
+            (!room.prize || room.prize.stage === 'waiting')) {
           room.seats[seat] = null
           changed = true
         }
@@ -261,6 +330,9 @@ export function attachCompetition(
 
       if (message.type === 'join') {
         if (player) return reject(socket, 'Already joined a match.')
+        const prizeMatch = message.matchId.startsWith('prize-')
+        const wallet = prizeMatch ? prize?.admit(message.prizeToken) : undefined
+        if (prizeMatch && !wallet) return reject(socket, 'An eligible prize wallet is required.', true)
         const existing = rooms.get(message.matchId)
         if (existing) advanceRoom(existing, time)
         let target = rooms.get(message.matchId)
@@ -271,7 +343,7 @@ export function attachCompetition(
           const token = Buffer.from(message.resumeToken)
           const found = SEATS.find(index => {
             const candidate = resumeRoom.seats[index]
-            return candidate && timingSafeEqual(token, Buffer.from(candidate.token))
+            return candidate && (!wallet || candidate.id === wallet) && timingSafeEqual(token, Buffer.from(candidate.token))
           })
           if (found === undefined) return reject(socket, 'Cannot resume this seat.', true)
           if (resumeRoom.seats[found]?.socket) {
@@ -287,16 +359,20 @@ export function attachCompetition(
             target = {
               id: message.matchId, seed: randomBytes(4).readUInt32LE(), createdAt: time, seats: [null, null],
               phase: 'lobby', tick: 0, nextTickAt: 0, lastSnapshotTick: 0,
+              prize: prizeMatch ? { stage: 'waiting' } : undefined,
             }
             rooms.set(target.id, target)
           }
           const { seats } = target
+          if (wallet && seats.some(member => member?.id === wallet)) {
+            return reject(socket, 'This wallet already has a seat in the match.', true)
+          }
           const open = SEATS.find(index => seats[index] === null)
           if (target.phase !== 'lobby' || open === undefined) return reject(socket, 'This match has no open seats.', true)
           seat = open
           target.seats[seat] = {
-            id: randomUUID(), token: randomBytes(32).toString('base64url'), graceMs: GRACE_MS,
-            ready: false, run: createGame(target.seed), ticks: 0, inputs: [],
+            id: wallet ?? randomUUID(), token: randomBytes(32).toString('base64url'), graceMs: GRACE_MS,
+            ready: false, run: createGame(target.seed, seat === 1), ticks: 0, inputs: [],
           }
         }
         room = target
@@ -308,11 +384,12 @@ export function attachCompetition(
         player.socket = socket
         joining.delete(socket)
         send(socket, { type: 'joined', matchId: room.id, seat, resumeToken: player.token })
-        if ((room.phase === 'paused' && reconnectDeadline(room) === Infinity) ||
-            (room.phase === 'lobby' && room.seats.every(member => member?.socket && member.ready))) {
+        if (room.phase === 'paused' && reconnectDeadline(room) === Infinity) {
           room.phase = 'running'
           room.nextTickAt = time + TICK_MS
         }
+        preparePrize(room)
+        tryStart(room, time)
         publish(room, time)
         if (room.record) send(socket, { type: 'record', record: room.record })
         return
@@ -322,12 +399,9 @@ export function attachCompetition(
       advanceRoom(room, time)
       if (socket.readyState !== WebSocket.OPEN) return
       if (message.type === 'ready') {
-        if (room.phase !== 'lobby' || player.ready) return
+        if (room.phase !== 'lobby' || player.ready || (room.prize && room.prize.stage !== 'funding')) return
         player.ready = true
-        if (room.seats.every(member => member?.socket && member.ready)) {
-          room.phase = 'running'
-          room.nextTickAt = time + TICK_MS
-        }
+        tryStart(room, time)
         publish(room, time)
       } else if (room.phase === 'running' && isContending(player) && player.run.respawnAtMs === 0) {
         // Only the latest intent per seat is applied on the next server tick.

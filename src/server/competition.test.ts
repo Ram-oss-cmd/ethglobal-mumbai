@@ -2,12 +2,13 @@ import { once } from 'node:events'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { setImmediate } from 'node:timers/promises'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 import { MATCH_SOCKET_PATH, type ServerMessage } from '../competition/protocol'
 import { verifyMatchRecord } from '../competition/replay'
 import { RUN_MS, TICK_MS } from '../game'
 import { attachCompetition } from './competition'
+import type { PrizeCompetition } from './prizeCompetition'
 
 type Packet<T extends ServerMessage['type']> = Extract<ServerMessage, { type: T }>
 
@@ -109,7 +110,11 @@ describe('authoritative two-player competition over WebSocket', () => {
     ])
     expect(startA).toEqual(startB)
     expect(startA.tick).toBe(0)
-    expect(startA.seats[0]?.run).toEqual(startA.seats[1]?.run)
+    expect(startA.seats[0]?.run?.player).toEqual(startA.seats[1]?.run?.player)
+    const [first, second] = startA.seats.map(seat => seat!.run!.pellets)
+    expect(first).toHaveLength(4)
+    expect(second).toHaveLength(4)
+    for (const pellet of first) expect(second).not.toContainEqual(pellet)
     expect(JSON.stringify(startA)).not.toContain(a.identity.resumeToken)
     expect(JSON.stringify(startB)).not.toContain(b.identity.resumeToken)
     return { a, b }
@@ -174,6 +179,61 @@ describe('authoritative two-player competition over WebSocket', () => {
       [RUN_MS / TICK_MS, 3, 'draw'],
     ])
     expect(verifyMatchRecord(record).map(run => run.elapsedMs)).toEqual([RUN_MS, RUN_MS])
+  })
+
+  it('requires eligible wallet seats and confirmed deposits before starting a prize room', async () => {
+    const wallets = [
+      '0x0000000000000000000000000000000000000001',
+      '0x0000000000000000000000000000000000000002',
+    ] as const
+    const key = `0x${'1'.repeat(64)}` as const
+    let funded = false
+    const prize: PrizeCompetition = {
+      admit: token => token === 'a'.repeat(43) ? wallets[0] : token === 'b'.repeat(43) ? wallets[1] : undefined,
+      open: vi.fn(async () => ({
+        matchKey: key, transactionHash: key, depositDeadline: 0, refundAfter: 0,
+      })),
+      canStart: vi.fn(async () => funded),
+      complete: vi.fn(async () => ({})),
+    }
+    runtime.close()
+    runtime = attachCompetition(server, { now: () => now, prize })
+    const outsider = await connect()
+    outsider.send({ type: 'join', matchId: 'prize-test-room' })
+    expect((await outsider.receive('error')).fatal).toBe(true)
+
+    const a = await connect()
+    a.send({ type: 'join', matchId: 'prize-test-room', prizeToken: 'a'.repeat(43) })
+    await a.receive('joined')
+    const duplicate = await connect()
+    duplicate.send({ type: 'join', matchId: 'prize-test-room', prizeToken: 'a'.repeat(43) })
+    expect((await duplicate.receive('error')).fatal).toBe(true)
+    const b = await connect()
+    b.send({ type: 'join', matchId: 'prize-test-room', prizeToken: 'b'.repeat(43) })
+    const joined = await b.receive('joined')
+    await a.receive('state', state => state.prize?.stage === 'funding')
+    expect(prize.open).toHaveBeenCalledOnce()
+    expect(prize.open).toHaveBeenCalledWith('prize-test-room', wallets)
+    a.send({ type: 'ready' })
+    b.send({ type: 'ready' })
+    const blocked = await a.receive('state', state => Boolean(state.prize?.message))
+    expect(blocked.phase).toBe('lobby')
+    expect(blocked.seats.map(seat => seat?.ready)).toEqual([false, false])
+
+    funded = true
+    a.send({ type: 'ready' })
+    b.send({ type: 'ready' })
+    const started = await a.receive('state', state => state.phase === 'running')
+    expect(started.seats.map(seat => seat?.playerId)).toEqual(wallets)
+    await b.disconnect()
+    await a.receive('state', state => state.phase === 'paused')
+    const stolen = await connect()
+    stolen.send({ type: 'join', matchId: 'prize-test-room', prizeToken: 'a'.repeat(43), resumeToken: joined.resumeToken })
+    expect((await stolen.receive('error')).fatal).toBe(true)
+    await advance(10_000)
+    const { record } = await a.receive('record')
+    expect(record.result.kind).toBe('canceled')
+    expect(prize.complete).toHaveBeenCalledWith(key, record, wallets)
   })
 
   it('pauses both clocks for a live disconnect, resumes the seat, and cancels after cumulative grace', async () => {

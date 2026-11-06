@@ -1,8 +1,20 @@
-import { createHash } from 'node:crypto'
-import { isDeepStrictEqual } from 'node:util'
+import { sha256, stringToHex } from 'viem'
 import type { GameState } from '../game/index.ts'
 import { ENGINE_VERSION, type MatchRecord, type MatchResult, type Outcome, type RunRecord, type Seat } from './protocol.ts'
 import { replayRun } from './run.ts'
+
+// Replay records are JSON. Compare their values independently of property order.
+function matchesRecord(expected: unknown, actual: unknown): boolean {
+  if (expected === actual) return true
+  if (!expected || !actual || typeof expected !== 'object' || typeof actual !== 'object' ||
+      Array.isArray(expected) !== Array.isArray(actual)) return false
+  const keys = Object.keys(expected)
+  return keys.length === Object.keys(actual).length && keys.every(key =>
+    Object.hasOwn(actual, key) && matchesRecord(
+      (expected as Record<string, unknown>)[key], (actual as Record<string, unknown>)[key],
+    ),
+  )
+}
 
 export function decideMatch([first, second]: [GameState, GameState]): MatchResult | undefined {
   if (first.status === 'full-clear' || second.status === 'full-clear') {
@@ -39,14 +51,14 @@ function reconstruct(
       if (game.lives !== previousLives) deaths.push({ tick, lives: game.lives })
       previousBanked = game.banked
       previousLives = game.lives
-    })
+    }, seat === 1)
     const outcome: Outcome = result.kind === 'win' ? result.winner === seat ? 'win' : 'loss' : result.kind
     const body: Omit<RunRecord, 'digest'> = {
-      matchId, playerId: playerIds[seat], seed, engineVersion: ENGINE_VERSION, ticks: ticks[seat],
+      matchId, playerId: playerIds[seat], seed, alternateLayout: seat === 1, engineVersion: ENGINE_VERSION, ticks: ticks[seat],
       inputs: inputs.map(({ tick, direction }) => ({ tick, direction })),
       banking, deaths, finalBanked: state.banked, status: state.status, outcome,
     }
-    const digest = createHash('sha256').update(JSON.stringify(body)).digest('hex')
+    const digest = sha256(stringToHex(JSON.stringify(body))).slice(2)
     return { state, record: { ...body, digest } }
   }
 
@@ -59,7 +71,7 @@ function reconstruct(
     (state.status === 'playing' || state.status === 'full-clear') && ticks[seat] !== stopTick
   )) throw new Error('Runs did not stop on the same decisive tick')
   const expected = decision ?? { kind: 'canceled', reason: 'disconnect', refundEligible: true }
-  if (!isDeepStrictEqual(expected, result)) throw new Error('Replay outcome differs from server result')
+  if (!matchesRecord(expected, result)) throw new Error('Replay outcome differs from server result')
   return { states, record: { matchId, result, runs: [first.record, second.record] } }
 }
 
@@ -85,6 +97,6 @@ export function verifyMatchRecord(record: MatchRecord) {
     record.matchId, [first.playerId, second.playerId], first.seed,
     [first.inputs, second.inputs], [first.ticks, second.ticks], record.result,
   )
-  if (!isDeepStrictEqual(replay.record, record)) throw new Error('Replay record differs from reconstructed record')
+  if (!matchesRecord(replay.record, record)) throw new Error('Replay record differs from reconstructed record')
   return replay.states
 }

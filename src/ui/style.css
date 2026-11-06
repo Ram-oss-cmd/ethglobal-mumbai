@@ -79,7 +79,16 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 .match-status p { margin-block: 8px; }
 .match-status [role="alert"] { color: #ff6262; }
 .match-status .play { padding: 6px 12px; }
-.duel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.duel { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.duel::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: #5362ff;
+  pointer-events: none;
+}
 .match-board { min-width: 0; }
 .match-board h2 {
   display: flex;
