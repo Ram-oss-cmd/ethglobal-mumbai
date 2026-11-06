@@ -119,6 +119,7 @@ function StakeOffer({ offers, seat, ready, variable, opponentConnected, onOffer,
         <button type="submit" disabled={!validStakeOffer(units, variable) || units === ownOffer}>Update offer</button>
       </form>
       <p>{opponentConnected ? `Opponent offers ${opponent} test USDC.` : 'Set your offer and share the invite.'}</p>
+      {!variable && <p>This live escrow uses a fixed 10 test USDC stake. Deploy escrow version 2 to edit amounts.</p>}
       <p>Matched stake <strong>{agreed} test USDC each</strong></p>
       <div className="match-actions">
         <button type="button" disabled={!opponentConnected || ready || units !== ownOffer} onClick={() => onConfirm(offers.revision)}>

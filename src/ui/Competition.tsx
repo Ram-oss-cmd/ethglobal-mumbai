@@ -15,12 +15,6 @@ import type { PrizeMember } from '../web3/api'
 type MatchState = Extract<ServerMessage, { type: 'state' }>
 type Join = Extract<ServerMessage, { type: 'joined' }>
 
-function inviteUrl(code: string) {
-  const url = new URL(location.href)
-  url.searchParams.set('match', code)
-  return url
-}
-
 export default function Competition({ matchId, leave, prize, initialStakeUnits, balance }: {
   matchId: string; leave: () => void; prize?: PrizeMember; initialStakeUnits?: number; balance?: bigint | null
 }) {
@@ -152,14 +146,14 @@ export default function Competition({ matchId, leave, prize, initialStakeUnits, 
         <div className="match-actions">
           <button type="button" onClick={async () => {
             try {
-              await navigator.clipboard.writeText(inviteUrl(matchId).href)
+              await navigator.clipboard.writeText(matchId)
               setInvite('copied')
             } catch {
               setInvite('unavailable')
             }
-          }}>{invite === 'copied' ? 'Invite copied' : 'Copy invite'}</button>
+          }}>{invite === 'copied' ? 'Match code copied' : 'Copy match code'}</button>
           {invite === 'unavailable' && (
-            <input aria-label="Invite link" readOnly value={inviteUrl(matchId).href} onFocus={event => event.target.select()} />
+            <input aria-label="Match code" readOnly value={matchId} onFocus={event => event.target.select()} />
           )}
           <button type="button" onClick={leave}>Leave match</button>
         </div>

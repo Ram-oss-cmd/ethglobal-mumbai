@@ -83,7 +83,7 @@ export default function Multiplayer({ account, balance, walletActions }: {
     void action().catch(failure => {
       const message = failure instanceof Error ? failure.message.split('\n')[0] : 'Wallet request failed.'
       report(/not been authorized|unauthorized/i.test(message)
-        ? 'Approve this MetaMask account when prompted, then continue.' : message)
+        ? 'MetaMask did not authorize this account. Select the account shown in the Wallet Rush menu, sign out, sign in again, then continue.' : message)
     }).finally(() => setBusy(false))
   }
 
@@ -171,7 +171,7 @@ export default function Multiplayer({ account, balance, walletActions }: {
       </section>}
       {stakedRoom && (!member || busy || error || worldGate) && <section className={member ? 'entry-refresh' : 'lobby prize-panel'} aria-label="Staked match entry">
         {!member && <h2>Join a staked match</h2>}
-        {!member && config?.enabled && <p>Continue with MetaMask to use Arc Testnet and verify your entry.</p>}
+        {!member && config?.enabled && <p>Continue with MetaMask using the same account shown in the wallet menu.</p>}
         {!member && config?.worldEnvironment === 'staging' && <p>World ID staging · simulator proofs are for testing.</p>}
         {!member && config === undefined && <p role="status">Checking staked play…</p>}
         {!member && config !== undefined && !config?.enabled && <p role="status">Staked play is unavailable.</p>}

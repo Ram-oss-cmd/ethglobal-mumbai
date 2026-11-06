@@ -38,9 +38,9 @@ it('uses the chosen authorized address for wallet actions even when MetaMask lis
   let addresses = [first, chosen]
   stubWallet(async ({ method }) => method === 'eth_accounts' ? addresses : '0x4cef52', chosen.toLowerCase())
   await expect(checkedWallet(chosen)).resolves.toBeDefined()
-  await expect(checkedWallet(first)).rejects.toThrow('wallet changed')
+  await expect(checkedWallet(first)).rejects.toThrow('authorized a different account')
   addresses = [first]
-  await expect(checkedWallet(chosen)).rejects.toThrow('wallet changed')
+  await expect(checkedWallet(chosen)).rejects.toThrow('authorized a different account')
 })
 
 it('rejects a wallet action after the app signs out even when MetaMask still grants access', async () => {
@@ -83,7 +83,7 @@ it('checks the real provider chain and selected account before permitting a wall
   expect(Number(chain)).toBe(ARC_TESTNET.id)
   await expect(checkedWallet(account)).resolves.toBeDefined()
   active = [privateKeyToAccount(generatePrivateKey()).address]
-  await expect(checkedWallet(account)).rejects.toThrow('wallet changed')
+  await expect(checkedWallet(account)).rejects.toThrow('authorized a different account')
   expect(request.mock.calls.some(([call]) => call.method === 'eth_sendTransaction')).toBe(false)
 })
 

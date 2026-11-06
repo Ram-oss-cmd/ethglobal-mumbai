@@ -58,7 +58,9 @@ export async function checkedWallet(account: Address, requestAccess = false) {
   if (window.localStorage.getItem(WALLET_SIGN_IN_KEY) !== '1') throw new Error('Sign in to Wallet Rush first.')
   if (chain !== ARC_TESTNET.id) throw new Error('Switch your wallet to Arc Testnet first.')
   const selected = selectedWalletAccount(addresses, window.sessionStorage?.getItem(WALLET_ACCOUNT_KEY))
-  if (!selected || !isAddressEqual(selected, account)) throw new Error('The connected wallet changed. Reconnect it.')
+  if (!selected || !isAddressEqual(selected, account)) {
+    throw new Error('MetaMask authorized a different account. Sign out of Wallet Rush, select this account in MetaMask, then sign in again.')
+  }
   return client
 }
 
