@@ -171,11 +171,11 @@ function prepareGhostPhotos(textures: Phaser.Textures.TextureManager) {
   }
 }
 
-function actor(scene: Phaser.Scene, texture: string, WIDTH: number, TILE_HEIGHT: number, baseSize = GHOST_SIZE) {
+function actor(scene: Phaser.Scene, texture: string, WIDTH: number, TILE_HEIGHT: number, baseSize = GHOST_SIZE + 6) {
   const image = scene.add.image(0, 0, texture).setAlpha(0)
   const wrap = scene.add.image(0, 0, texture).setAlpha(0)
   return (position: GameState['player'], nextTexture: string, alpha = 1) => {
-    const size = nextTexture === 'returning' ? baseSize : baseSize * 2
+    const size = nextTexture === 'returning' ? GHOST_SIZE : baseSize * 2
     const x = Math.round((position.x + 0.5) * TILE_WIDTH)
     const y = Math.round((position.y + 0.5) * TILE_HEIGHT)
     image.setPosition(x, y).setTexture(nextTexture).setDisplaySize(size, size).setAlpha(alpha)
@@ -259,7 +259,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           .setVisible(false)
         const ghosts = Object.values(ghostColors).map(color => actor(this, `${color}_left`, WIDTH, TILE_HEIGHT))
         const player = actor(this, 'normal_left', WIDTH, TILE_HEIGHT, playerSize)
-        const sadPortrait = this.add.image(0, 0, 'sad').setDisplaySize(GHOST_SIZE, GHOST_SIZE).setVisible(false)
+        const sadPortrait = this.add.image(0, 0, 'sad').setDisplaySize(playerSize * 2, playerSize * 2).setVisible(false)
 
         draw = (now) => {
           if (!state) return
@@ -294,7 +294,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           player(pos, `${isEaten ? 'hit' : 'normal'}_${playerFacing}`, spritesVisible ? (dimPlayer ? 0.6 : 1) : 0)
           sadPortrait.setVisible(spritesVisible && showingSad)
           if (sadPortrait.visible) {
-            const half = GHOST_SIZE / 2
+            const half = playerSize
             const x = Phaser.Math.Clamp((pos.x + .5) * TILE_WIDTH, half, WIDTH - half)
             const y = Math.max(half, (pos.y + .5) * TILE_HEIGHT - playerSize - half - 4)
             sadPortrait.setPosition(x, y)

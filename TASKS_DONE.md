@@ -53,3 +53,4 @@
 - [x] Matched both multiplayer boards to the single-player dimensions and added a 12 px white divider. Two Edge sessions verified desktop sizing and horizontal scrolling at narrower widths. All 60 tests, lint, and build passed.
 - [x] Added directional ghost portraits, blue power-up portraits, and the sad portrait during the eaten-ghost pause. Edge verified the rendered transitions and transparent backgrounds. All 60 tests, lint, and build passed.
 - [x] Moved the sad portrait above the dog and restored the two-dot return sprite. Edge verified the visual sequence, and simulation tests confirmed the faster trip home and archived return speed. All 60 tests, lint, and build passed.
+- [x] Enlarged the ghost portraits by about 10% and matched the sad portrait to the dog's sprite dimensions. Edge verified both sizes and the compact returning dots. All 60 tests, lint, and build passed.
