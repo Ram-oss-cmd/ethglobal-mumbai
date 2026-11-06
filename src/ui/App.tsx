@@ -72,7 +72,7 @@ export default function App() {
       <section className="lobby wallet-entry" aria-labelledby="wallet-entry-title">
         <h1 id="wallet-entry-title">Wallet Rush</h1>
         <p>Connect your wallet to enter the arcade.</p>
-        <div className="match-actions">
+        <div className="match-actions wallet-options">
           <button type="button" className="play" disabled={connecting} onClick={() => void connect()}>
             {connecting ? 'Connecting…' : 'Connect MetaMask'}
           </button>

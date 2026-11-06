@@ -75,7 +75,7 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
       {ownPayout > 0n && <p role="status">{formatUnits(ownPayout, USDC_DECIMALS)} test USDC {result?.kind === 'win' ? 'transferred to' : 'refunded to'} your wallet.</p>}
       {prize?.deferredPayouts?.map(({ player, amount }) => (
         <p key={player} role="status">{formatUnits(BigInt(amount), USDC_DECIMALS)} test USDC was deferred for
-          {' '}{isAddressEqual(player, member.address) ? 'your wallet. Check “Claim deferred test USDC” above.' : 'the other wallet.'}</p>
+          {' '}{isAddressEqual(player, member.address) ? 'your wallet. Return to the lobby and open “Arc refunds and claims” to claim it.' : 'the other wallet.'}</p>
       ))}
       {prize?.historyKey && <a href={`/replay/${matchId}`}>Public Arkiv replay</a>}
       {prize?.archiveTx && <a href={`https://rabdi.explorer.arkiv.network/tx/${prize.archiveTx}`}>Arkiv archive receipt</a>}
