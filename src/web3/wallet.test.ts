@@ -2,14 +2,16 @@ import { encodeAbiParameters, encodeEventTopics } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ARC_TESTNET, ENTRY_AMOUNT, ESCROW_ABI, matchKeyFor } from '../arc/chain.ts'
-import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, refundUSDC, switchToArc, WALLET_ACCOUNT_KEY } from './wallet.ts'
+import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, refundUSDC, switchToArc, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from './wallet.ts'
 
 function stubWallet(request: (args: { method: string }) => Promise<unknown>, preferred?: string) {
-  const browser = Object.assign(new EventTarget(), { sessionStorage: {
-    getItem: (key: string) => key === WALLET_ACCOUNT_KEY ? preferred : null,
-  } })
+  const browser = Object.assign(new EventTarget(), {
+    localStorage: { getItem: (key: string) => key === WALLET_SIGN_IN_KEY ? '1' : null },
+    sessionStorage: { getItem: (key: string) => key === WALLET_ACCOUNT_KEY ? preferred : null },
+  })
   announceWallet(browser, 'io.metamask', { request })
   vi.stubGlobal('window', browser)
+  return browser
 }
 
 function announceWallet(browser: EventTarget, rdns: string, provider: { request: unknown }) {
@@ -51,6 +53,14 @@ it('uses the chosen authorized address for wallet actions even when MetaMask lis
   await expect(checkedWallet(first)).rejects.toThrow('wallet changed')
   addresses = [first]
   await expect(checkedWallet(chosen)).rejects.toThrow('wallet changed')
+})
+
+it('rejects a wallet action after the app signs out even when MetaMask still grants access', async () => {
+  const address = '0x1000000000000000000000000000000000000000'
+  const browser = stubWallet(async ({ method }) => method === 'eth_accounts' ? [address] : '0x4cef52')
+  await expect(checkedWallet(address)).resolves.toBeDefined()
+  vi.spyOn(browser.localStorage, 'getItem').mockReturnValue(null)
+  await expect(checkedWallet(address)).rejects.toThrow('Sign in to Wallet Rush first')
 })
 
 it('uses the announced MetaMask provider when another wallet owns window.ethereum', async () => {

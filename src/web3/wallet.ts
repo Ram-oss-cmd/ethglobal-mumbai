@@ -47,8 +47,10 @@ export async function switchToArc() {
 
 /** Check the provider again before every signature or transaction, including after approval. */
 export async function checkedWallet(account: Address) {
+  if (window.localStorage.getItem(WALLET_SIGN_IN_KEY) !== '1') throw new Error('Sign in to Wallet Rush first.')
   const { client } = injectedWallet()
   const [chain, addresses] = await Promise.all([client.getChainId(), client.getAddresses()])
+  if (window.localStorage.getItem(WALLET_SIGN_IN_KEY) !== '1') throw new Error('Sign in to Wallet Rush first.')
   if (chain !== ARC_TESTNET.id) throw new Error('Switch your wallet to Arc Testnet first.')
   const selected = selectedWalletAccount(addresses, window.sessionStorage?.getItem(WALLET_ACCOUNT_KEY))
   if (!selected || !isAddressEqual(selected, account)) throw new Error('The connected wallet changed. Reconnect it.')
@@ -58,7 +60,7 @@ export async function checkedWallet(account: Address) {
 export async function depositUSDC(account: Address, escrow: Address, matchKey: Hex, onHash: (hash: Hex) => void,
   stakeUnits = Number(ENTRY_AMOUNT), version: EscrowVersion = '1') {
   if (await arc.getChainId() !== ARC_TESTNET.id) throw new Error('Unexpected Arc RPC chain.')
-  const client = await checkedWallet(account)
+  await checkedWallet(account)
   const escrowStake = version === '2'
     ? await arc.readContract({ address: escrow, abi: MATCHED_STAKE_ABI, functionName: 'getStake', args: [matchKey] })
     : Number(ENTRY_AMOUNT)
@@ -69,7 +71,7 @@ export async function depositUSDC(account: Address, escrow: Address, matchKey: H
     const { request } = await arc.simulateContract({
       account, address: ARC_USDC, abi: erc20Abi, functionName: 'approve', args: [escrow, amount],
     })
-    const hash = await client.writeContract(request)
+    const hash = await (await checkedWallet(account)).writeContract(request)
     onHash(hash)
     if ((await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })).status !== 'success') {
       throw new Error('USDC approval reverted.')
@@ -92,7 +94,7 @@ export async function depositUSDC(account: Address, escrow: Address, matchKey: H
 
 export async function refundUSDC(account: Address, escrow: Address, matchKey: Hex, onHash: (hash: Hex) => void, version: EscrowVersion = '1') {
   if (await arc.getChainId() !== ARC_TESTNET.id) throw new Error('Unexpected Arc RPC chain.')
-  const client = await checkedWallet(account)
+  await checkedWallet(account)
   const stakeUnits = version === '2'
     ? await arc.readContract({ address: escrow, abi: MATCHED_STAKE_ABI, functionName: 'getStake', args: [matchKey] })
     : Number(ENTRY_AMOUNT)
@@ -100,7 +102,7 @@ export async function refundUSDC(account: Address, escrow: Address, matchKey: He
   const { request } = await arc.simulateContract({
     account: getAddress(account), address: escrow, abi: ESCROW_ABI, functionName: 'refundExpired', args: [matchKey],
   })
-  const hash = await client.writeContract(request)
+  const hash = await (await checkedWallet(account)).writeContract(request)
   onHash(hash)
   const receipt = await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })
   const refunds = parseEventLogs({ abi: ESCROW_ABI, eventName: 'Refunded',
@@ -115,9 +117,9 @@ export async function refundUSDC(account: Address, escrow: Address, matchKey: He
 
 export async function claimUSDC(account: Address, escrow: Address, onHash: (hash: Hex) => void) {
   if (await arc.getChainId() !== ARC_TESTNET.id) throw new Error('Unexpected Arc RPC chain.')
-  const client = await checkedWallet(account)
+  await checkedWallet(account)
   const { request } = await arc.simulateContract({ account, address: escrow, abi: ESCROW_ABI, functionName: 'claim' })
-  const hash = await client.writeContract(request)
+  const hash = await (await checkedWallet(account)).writeContract(request)
   onHash(hash)
   const receipt = await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })
   const claims = parseEventLogs({ abi: ESCROW_ABI, eventName: 'Claimed',
