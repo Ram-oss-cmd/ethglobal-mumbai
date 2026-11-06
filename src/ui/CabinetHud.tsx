@@ -13,23 +13,25 @@ export const endings: Record<Hud['status'], string> = {
 
 const arrows: Record<Direction, string> = { up: '↑', left: '←', down: '↓', right: '→' }
 
-export function Scoreboard({ carried, banked, seconds }: Hud) {
+export function Scoreboard({ carried, banked, seconds, lives }: Hud) {
   const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
   return (
-    <dl className="scoreboard">
-      <div><dt>Carried</dt><dd className="score-carried">{carried}</dd></div>
-      <div><dt>Banked</dt><dd>{banked}</dd></div>
-      <div><dt>Time</dt><dd className={seconds <= 10 ? 'score-urgent' : undefined}>{clock}</dd></div>
-    </dl>
-  )
-}
-
-export function ArenaFooter({ lives, powerSeconds, onRestart }: Hud & { onRestart?: () => void }) {
-  return (
-    <div className="arena-footer">
+    <div className="arena-hud">
+      <dl className="scoreboard">
+        <div><dt>Carried</dt><dd className="score-carried">{carried}</dd></div>
+        <div><dt>Banked</dt><dd>{banked}</dd></div>
+        <div><dt>Time</dt><dd className={seconds <= 10 ? 'score-urgent' : undefined}>{clock}</dd></div>
+      </dl>
       <div className="life-meter" role="img" aria-label={`${lives} lives remaining`}>
         {[1, 2, 3].map(life => <img key={life} src={life <= lives ? wallet : walletOutline} alt="" />)}
       </div>
+    </div>
+  )
+}
+
+export function ArenaFooter({ powerSeconds, onRestart }: Hud & { onRestart?: () => void }) {
+  return (
+    <div className="arena-footer">
       <span className="power" role="status">{powerSeconds > 0 && `◆ ${powerSeconds}s`}</span>
       {onRestart && <button className="restart" type="button" aria-label="Restart run" title="Restart run" onClick={onRestart}>↻</button>}
     </div>

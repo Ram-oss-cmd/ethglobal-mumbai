@@ -17,7 +17,6 @@ const TILE = 28
 const WIDTH = MAZE[0].length * TILE
 const HEIGHT = MAZE.length * TILE
 const BACKGROUND = 0x000000
-const PRACTICE_SEED = 0x57525553
 export const BOARD_ASPECT = WIDTH / HEIGHT
 
 const keys = new Map<string, Direction>([
@@ -128,10 +127,10 @@ function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObje
   for (const pellet of state.pellets) {
     const x = (pellet.x + 0.5) * TILE
     const y = (pellet.y + 0.5) * TILE
-    pellets.fillStyle(0xffe5cf).fillTriangle(x, y - 9, x - 6, y + 1, x, y + 4)
-    pellets.fillStyle(0xeea078).fillTriangle(x, y - 9, x + 6, y + 1, x, y + 4)
-    pellets.fillStyle(0xffd2b5).fillTriangle(x - 6, y + 3, x, y + 6, x, y + 9)
-    pellets.fillStyle(0xc77255).fillTriangle(x + 6, y + 3, x, y + 6, x, y + 9)
+    pellets.fillStyle(0xffe5cf).fillTriangle(x, y - 11, x - 7, y + 1, x, y + 5)
+    pellets.fillStyle(0xeea078).fillTriangle(x, y - 11, x + 7, y + 1, x, y + 5)
+    pellets.fillStyle(0xffd2b5).fillTriangle(x - 7, y + 3, x, y + 7, x, y + 11)
+    pellets.fillStyle(0xc77255).fillTriangle(x + 7, y + 3, x, y + 7, x, y + 11)
   }
 }
 
@@ -244,7 +243,9 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
 
   return {
     present(next: RunView, smooth = false, visible = true) {
-      previous = smooth && state?.lives === next.lives && next.status === 'playing' ? state : null
+      // Show the ghost catch immediately so interpolation cannot slide actors during the freeze.
+      previous = smooth && state?.lives === next.lives && next.status === 'playing' &&
+        state.ghostPauseUntilMs === next.ghostPauseUntilMs ? state : null
       state = next
       spritesVisible = visible
       changed = true
@@ -255,7 +256,8 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
 }
 
 export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) {
-  let state = createGame(PRACTICE_SEED)
+  const newRun = () => createGame(crypto.getRandomValues(new Uint32Array(1))[0])
+  let state = newRun()
   let startedAt: number | undefined
   let input: Direction | undefined
   let previous: Hud | undefined
@@ -290,7 +292,7 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
 
   return {
     start() {
-      state = createGame(PRACTICE_SEED)
+      if (startedAt !== undefined) state = newRun()
       input = undefined
       startedAt = performance.now()
       board.present(state)

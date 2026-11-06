@@ -169,11 +169,12 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
   min-height: 34px;
 }
 
-.life-meter { display: flex; gap: 5px; }
+.life-meter { display: flex; justify-content: flex-end; gap: 5px; padding: 4px 4% 0; }
 .life-meter img { width: 25px; height: 25px; image-rendering: pixelated; }
-.power { color: #ffba9d; font-size: 0.85rem; }
+.power { grid-column: 2; color: #ffba9d; font-size: 0.85rem; }
 
 .restart {
+  grid-column: 3;
   justify-self: end;
   width: 34px;
   height: 34px;
