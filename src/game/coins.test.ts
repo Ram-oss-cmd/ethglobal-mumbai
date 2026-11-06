@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { RESPAWN_MAX_MS, RESPAWN_MIN_MS } from './coins'
 import { createGame, DEATH_PAUSE_MS, type Direction, type GameState, loseLife, MAZE, stepGame, TICK_MS, TOTAL_DOTS } from './index'
 import { HOME_TILE, START_TILE, TUNNEL_ROW, VAULT_TILE, WIDTH } from './maze'
 import { createActor } from './movement'
@@ -110,8 +109,8 @@ describe('collecting and banking', () => {
       expect(state.route).toContain(tile)
       expect([START_TILE, HOME_TILE, VAULT_TILE]).not.toContain(tile)
       expect(MAZE[dot.y][dot.x]).toMatch(/[. ]/)
-      expect(dot.atMs - deathMs).toBeGreaterThanOrEqual(RESPAWN_MIN_MS)
-      expect(dot.atMs - deathMs).toBeLessThanOrEqual(RESPAWN_MAX_MS)
+      expect(dot.atMs - deathMs).toBeGreaterThanOrEqual(600)
+      expect(dot.atMs - deathMs).toBeLessThanOrEqual(900)
     }
 
     while (state.queuedDots.length > 0) {
@@ -120,6 +119,34 @@ describe('collecting and banking', () => {
       for (const dot of schedule) {
         const sameTile = dot.x === Math.round(state.player.x) && dot.y === Math.round(state.player.y)
         expect(state.dots.some(active => active.id === dot.id)).toBe(dot.atMs <= state.elapsedMs && !sameTile)
+      }
+    }
+  })
+
+  it('conserves unique dots across repeated losses after banking with either seat layout', () => {
+    for (let seed = 0; seed < 32; seed++) {
+      const state = createGame(seed, seed % 2 === 1)
+      state.ghosts = []
+      advance(state, 58, 'down')
+      const bankedIds = new Set(state.carriedDots.map(dot => dot.id))
+      stepGame(state)
+      advance(state, 59, 'up')
+      for (let life = 2; life >= 0; life--) {
+        advance(state, 34, 'left')
+        expect(state.carried).toBeGreaterThan(0)
+        const lost = state.carriedDots.map(dot => dot.id)
+        loseLife(state)
+        expect(state).toMatchObject({ lives: life, banked: 3, carried: 0 })
+        expect(state.queuedDots.map(dot => dot.id)).toEqual(lost)
+        for (const dot of state.queuedDots) {
+          expect(state.route).toContain(dot.y * WIDTH + dot.x)
+          expect(dot.atMs - state.elapsedMs).toBeGreaterThanOrEqual(600)
+          expect(dot.atMs - state.elapsedMs).toBeLessThanOrEqual(900)
+        }
+        advance(state, DEATH_PAUSE_MS / TICK_MS)
+        expect(state.queuedDots).toHaveLength(0)
+        expect(unbankedIds(state).some(id => bankedIds.has(id))).toBe(false)
+        expectConserved(state)
       }
     }
   })

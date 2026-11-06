@@ -4,8 +4,8 @@ import { randomIndex } from './random.ts'
 export type Dot = ReturnType<typeof point> & { id: number }
 type QueuedDot = Dot & { atMs: number }
 
-export const RESPAWN_MIN_MS = 900
-export const RESPAWN_MAX_MS = 1_200
+export const RESPAWN_MIN_MS = 600
+export const RESPAWN_MAX_MS = 900
 
 export interface CoinState {
   carried: number

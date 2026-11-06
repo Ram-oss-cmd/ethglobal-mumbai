@@ -21,3 +21,4 @@
 - [x] Made the duel divider a 4 px white line and widened the mobile gap. Two Edge sessions verified the divider at 1280 px and 390 px with no horizontal overflow. All 37 tests, lint and build passed.
 - [x] Imported the reviewed Arc Studio escrow, ABI and test suite. The repository reproduced the Studio bytecode with 119 passing Foundry tests. Arc Testnet confirmed the deployment receipt, exact contract code, referee and 10 USDC stake.
 - [x] Showed deferred Arc payouts separately from settlement and enabled the recipient to claim them. Receipt filtering, WebSocket status and connected-wallet claim checks passed. All 39 app tests, lint and build passed, and the deployed contract answered the claimable read.
+- [x] Set route-dot respawns to 600–900 ms and versioned the replay rules. All 21 engine, replay, and archive tests passed, including 96 repeated losses across both layouts with banked-dot protection.

@@ -1,7 +1,7 @@
 import type { Direction, GameState } from '../game/index.ts'
 import type { DeferredPayout } from '../arc/chain.ts'
 
-export const ENGINE_VERSION = 'wallet-rush-4'
+export const ENGINE_VERSION = 'wallet-rush-5'
 export const MATCH_SOCKET_PATH = '/ws'
 export type Seat = 0 | 1
 export type RunView = Pick<GameState,
