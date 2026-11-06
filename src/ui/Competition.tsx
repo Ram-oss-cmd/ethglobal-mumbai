@@ -187,9 +187,11 @@ export default function Competition({ matchId, leave, prize, initialStakeUnits, 
       {record && replay !== null ? (
         <Replay key={replay} record={record} seat={replay} leave={() => setReplay(null)} />
       ) : (
-        <div className="duel">
-          <MatchBoard title="You" run={own?.run} smooth={running} />
-          <MatchBoard title={opponent?.connected ? 'Opponent' : 'Opponent · Offline'} run={opponent?.run} smooth={running} />
+        <div className="duel-scroll" role="region" aria-label="Match boards" tabIndex={0}>
+          <div className="duel">
+            <MatchBoard title="You" run={own?.run} smooth={running} />
+            <MatchBoard title={opponent?.connected ? 'Opponent' : 'Opponent · Offline'} run={opponent?.run} smooth={running} />
+          </div>
         </div>
       )}
       {canSteer && <TouchControls disabled={false} steer={direction => send({ type: 'input', direction })} />}
