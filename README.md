@@ -31,7 +31,7 @@ The Node WebSocket server runs alongside Vite in dev and preview. For a custom h
 
 The server applies direction inputs at 10 ms ticks. It owns both scores and checks the final states against deterministic replays before publishing a result. A player who runs out of lives can spectate. A full clear ends the match immediately, with simultaneous clears on the same tick counted as a draw. Otherwise the final banked scores decide the result.
 
-An active player's disconnect pauses both clocks for up to 10 seconds of cumulative grace per seat. Reopen the room in the same browser tab to resume. If grace expires, the match is canceled and marked refund-eligible. Score ties are draws. This chunk records outcomes and moves no funds. Rooms and replay records live in server memory, and completed records expire after 10 minutes. Download the JSON to keep a copy. SHA-256 digests detect discrepancies when replaying a record. Trust in the origin of a result comes from the authoritative server.
+An active player's disconnect pauses both clocks for up to 10 seconds of cumulative grace per seat. Reopen the room in the same browser tab to resume. If grace expires, the match is canceled. Score ties are draws. Casual duels use virtual points only. Rooms and replay records live in server memory, and completed records expire after 10 minutes. Download the JSON to keep a copy. SHA-256 digests detect discrepancies when replaying a record. Trust in the origin of a result comes from the authoritative server.
 
 ## Play
 
@@ -45,7 +45,9 @@ An active player's disconnect pauses both clocks for up to 10 seconds of cumulat
 ```sh
 npm test
 npm run lint
+npm run typecheck
 npm run build
+git diff --check
 ```
 
 ## Engine and artwork
@@ -56,16 +58,16 @@ Phaser reads the simulation to draw the maze and handles steering. React display
 
 ## Hackathon provenance
 
-The starting commit contained a text note. Codex implemented this practice chunk from the team's gameplay specification, including the simulation, UI, placeholder art, and tests. Phaser, React, Vite, and the development tools are open-source dependencies. [ETHGlobal Mumbai submission rules](https://ethglobal.com/events/mumbai/info/details)
+The starting commit `abefc40` contains a text note. The team's contributions include the game specification and tuning feedback, the Arc Studio deployment, and the funded referee wallet. Codex assisted with the TypeScript simulation, React and Phaser UI, SVG placeholder sprites, server, sponsor wiring, tests, and documentation. Arc Studio generated the escrow and Solidity tests under `contracts/`. Git preserves the original implementation history. Confirm the actual kickoff and disclose any earlier project-specific work and the development prompts in the submission. [ETHGlobal Mumbai submission rules](https://ethglobal.com/events/mumbai/info/details)
+
+Wallet Rush project files are under the [MIT License](LICENSE). Dependencies such as React, Phaser, viem, IDKit, Arkiv SDK, and OpenZeppelin retain their own licenses and notices.
 
 ## Sponsor demo
 
-See [manual setup, architecture, and demo steps](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. The [Arc Studio deployment record](docs/arc-deployment.md) links the verified testnet contract and receipt. The prize lobby stays closed until all sponsor settings are configured. The funded sponsor demo is pending.
+See [manual setup and architecture](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. Use the [demo script and evidence checklist](docs/demo.md) to record the live flow. The [Arc Studio deployment record](docs/arc-deployment.md) links the verified testnet contract and receipt. The prize lobby stays closed until all sponsor settings are configured. The funded sponsor demo and public game URL are pending.
 
 The actual Arkiv writer address will be recorded after the first confirmed write. For now, pass your configured public writer address to the query below. It reads the latest immutable match summaries owned and created by that address directly from Rabdi.
 
 ```sh
 node --experimental-strip-types --input-type=module -e "import { createHistoryReader } from './src/history/reader.ts'; const rows = await createHistoryReader(process.argv[1], process.env.ARKIV_ACCESS_KEY).recent(); console.log(rows.entities)" YOUR_PUBLIC_WRITER_ADDRESS
 ```
-
-Codex assisted with the app, integration code, tests, and documentation. Arc Studio is the required starting point for the escrow source and demo connection.

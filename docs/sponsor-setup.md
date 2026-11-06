@@ -3,7 +3,7 @@
 ## Track checklist
 
 - **World — Best Use of IDKit.** Demo the Proof of Human prize-entry flow and a denied or canceled attempt. Explain why unique-human eligibility is needed, and include the integration debrief. [World prize](https://ethglobal.com/events/mumbai/prizes/world)
-- **Arkiv — Build on Arkiv (from scratch).** Confirm the team is in the Classic track and that project-specific work began after kickoff. Submit the public repository with an open-source license approved by the rights holder, disclose AI use, add the actual writer address and runnable query, and demo both a real Rabdi write and an application read. [Arkiv prize](https://ethglobal.com/events/mumbai/prizes/arkiv) · [ETHGlobal rules](https://ethglobal.com/rules)
+- **Arkiv — Build on Arkiv (from scratch).** Confirm the team is in the Classic track and that project-specific work began after kickoff. Submit the public repository with its MIT license and AI disclosure, add the actual writer address, and demo both a real Rabdi write and the runnable query or application read. [Arkiv prize](https://ethglobal.com/events/mumbai/prizes/arkiv) · [ETHGlobal rules](https://ethglobal.com/rules)
 - **Arc — Best Smart Contracts with Advanced Stablecoin Logic, In Arc Studio.** Create, test, deploy and connect the escrow inside Studio. Include a shareable project URL, GitHub repo, working frontend/backend, architecture diagram and a video showing Studio. [Arc prize](https://ethglobal.com/events/mumbai/prizes/arc)
 
 ## 1. Start the escrow inside Arc Studio
@@ -28,7 +28,6 @@ In PowerShell, from the repository folder:
 
 ```powershell
 git fetch origin
-git switch codex/web3-sponsors
 git pull --ff-only
 npm ci
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
@@ -47,13 +46,13 @@ Fill in the local, ignored `.env`. Share only public wallet addresses, public li
 
 1. Create two dedicated player wallets in separate browser profiles. Create a separate referee test wallet. Copy their **public addresses**. Keep the player keys inside their wallets.
 2. On the [Circle faucet](https://faucet.circle.com/), select **USDC**, select **Arc Testnet** under **Network**, paste a public address under **Send to**, then click **Send 20 USDC**. Complete any CAPTCHA. Repeat for both players and the referee within the faucet's limits. Players need at least 10 test USDC each plus gas. The referee needs test USDC for gas. The Studio workspace also offers a **Testnet Faucet** for its preview wallet.
-3. Put the referee test wallet's signing key in `ARC_REFEREE_KEY` on the host. Its public address must match the immutable referee in the deployment record. For the reviewed deployment set `ARC_ESCROW_ADDRESS=0xCd8BD94B8f6C79E82F0e63Fa3743bf70d5cc2623` and set `ARC_STUDIO_PROJECT_URL` to the Studio project URL. The app's **Switch to Arc Testnet** control adds the network if needed. The network uses [Arc Testnet Explorer](https://explorer.testnet.arc.io/). [Circle faucet](https://faucet.circle.com/) · [Arc Testnet chain details](https://docs-w3s-node-sdk.circle.com/variables/index.ARC_TESTNET.html)
+3. Put only the referee test account's private key in `ARC_REFEREE_KEY` on the host, with its `0x` prefix. Its public address must match the immutable referee in the deployment record. For the reviewed deployment set `ARC_ESCROW_ADDRESS=0xCd8BD94B8f6C79E82F0e63Fa3743bf70d5cc2623` and set `ARC_STUDIO_PROJECT_URL` to the Studio project URL. The app's **Switch to Arc Testnet** control adds the network if needed. The network uses [Arc Testnet Explorer](https://explorer.testnet.arc.io/). [Circle faucet](https://faucet.circle.com/) · [Arc Testnet chain details](https://docs-w3s-node-sdk.circle.com/variables/index.ARC_TESTNET.html)
 
 ### Arkiv Rabdi writer
 
 1. Use a separate test wallet for the archive. Open [Arkiv Hub → Faucet](https://hub.arkiv.network/faucet), connect that wallet, select Rabdi if prompted, and claim tGLM under **Get tGLM**. Check that the writer address received testnet gas before running the demo.
 2. Set `ARKIV_WRITER_KEY` to the test writer's private key on the host. Set `VITE_ARKIV_WRITER_ADDRESS` to the same wallet's **public address**. They must refer to the same account.
-3. The public RPC can be used for an initial read. If it rate-limits your demo, open [Arkiv Hub → Access Keys](https://hub.arkiv.network/access-keys). Set the server key in `ARKIV_ACCESS_KEY` and an origin-restricted browser key in `VITE_ARKIV_ACCESS_KEY`. The browser key is public. Use the actual browser origin you will open, including the port for local testing if the key settings require it. [Rabdi connection docs](https://docs.arkiv.network/start-here/clients/)
+3. The public RPC answered a direct query but also stalled during testing. For the demo, open [Arkiv Hub → Access Keys](https://hub.arkiv.network/access-keys). Set the server key in `ARKIV_ACCESS_KEY` and an origin-restricted browser key in `VITE_ARKIV_ACCESS_KEY`. The browser key is public. Use the actual browser origin you will open, including the port for local testing if the key settings require it. [Rabdi connection docs](https://docs.arkiv.network/start-here/clients/)
 
 ## 3. Run and record the funded demo
 
@@ -73,7 +72,7 @@ A standard Vercel or Netlify static deployment can serve the frontend build, but
 
 For a public hackathon demo without changing the app architecture, one option is a single HTTPS Node web service:
 
-1. In the Render dashboard, choose **New → Web Service → Git Provider** and select the Wallet Rush repository and `codex/web3-sponsors`. Select a supported Node LTS release and keep one service instance.
+1. In the Render dashboard, choose **New → Web Service → Git Provider** and select the Wallet Rush repository and the branch containing this guide. Select a supported Node LTS release and keep one service instance.
 2. Set **Build Command** to `npm ci --include=dev && npm run build` and **Start Command** to `npm run preview -- --host 0.0.0.0 --port "$PORT" --strictPort`. This reuses the app's existing preview server for a temporary demo.
 3. Under **Environment** set the sponsor variables and `WALLET_RUSH_ORIGIN` to the exact public HTTPS origin, without a trailing slash. Set the `VITE_` values before building. Preserve the two ledgers on persistent storage before running funded matches. For a disk mounted at `/var/data`, use `WORLD_ELIGIBILITY_FILE=/var/data/world-eligibility.json` and `PRIZE_ENTRY_FILE=/var/data/prize-entries.jsonl`. Render's persistent disks require a paid service.
 4. Open the deployed URL in two sessions. Confirm practice, a casual duel, and the History screen work before entering test funds. Share this game URL separately from the required Studio project link.
@@ -96,4 +95,4 @@ The server decides the winner after independently replaying both simulations. Th
 
 ## Evidence to fill after the demo
 
-The [Arc deployment record](arc-deployment.md) includes the confirmed contract and deployment transaction. Judge access to the Studio project URL, player deposits and settlement, first live World verification and an Arkiv write remain to be demonstrated.
+The [Arc deployment record](arc-deployment.md) includes the confirmed contract and deployment transaction. Use the [evidence checklist](demo.md) for judge access to the Studio project URL, player deposits and settlement, first live World verification, and the first Arkiv write.
