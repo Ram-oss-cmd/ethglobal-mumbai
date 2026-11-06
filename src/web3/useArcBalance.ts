@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
-import { arc } from './wallet'
+import { readTestUsdcBalance } from './wallet'
 
 export function useArcBalance(account?: Address) {
   const [result, setResult] = useState<{ account: Address; units: bigint | null }>()
   useEffect(() => {
     if (!account) return
     let active = true
-    const refresh = () => void arc.getBalance({ address: account }).then(
+    const refresh = () => void readTestUsdcBalance(account).then(
       units => { if (active) setResult({ account, units }) },
       () => { if (active) setResult({ account, units: null }) },
     )

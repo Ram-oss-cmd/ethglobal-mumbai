@@ -2,7 +2,7 @@ import { encodeAbiParameters, encodeEventTopics } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ARC_TESTNET, ENTRY_AMOUNT, ESCROW_ABI, matchKeyFor } from '../arc/chain.ts'
-import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, refundUSDC, switchToArc, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from './wallet.ts'
+import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, readTestUsdcBalance, refundUSDC, switchToArc, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from './wallet.ts'
 
 function stubWallet(request: (args: { method: string }) => Promise<unknown>, preferred?: string) {
   const browser = Object.assign(new EventTarget(), {
@@ -25,23 +25,11 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-it('reads the native balance from the backup Arc RPC when the primary is rate limited', async () => {
+it('reads the six-decimal ERC-20 balance used by the Arc escrow', async () => {
   const address = '0x1000000000000000000000000000000000000000'
-  const fetch = vi.fn(async (url: string, options: RequestInit) => {
-    if (url === ARC_TESTNET.rpcUrls.default.http[0] + '/') {
-      return Response.json({ error: 'rate limited' }, { status: 429 })
-    }
-    const { id, method, params } = JSON.parse(String(options.body))
-    expect(method).toBe('eth_getBalance')
-    expect(params[0]).toBe(address)
-    return Response.json({ jsonrpc: '2.0', id, result: '0x20f5b1eaad8d80000' })
-  })
-  vi.stubGlobal('fetch', fetch)
-  await expect(arc.getBalance({ address })).resolves.toBe(38_000_000_000_000_000_000n)
-  expect(fetch.mock.calls.map(([url]) => url)).toEqual([
-    'https://rpc.testnet.arc.io/',
-    'https://rpc.drpc.testnet.arc.io/',
-  ])
+  const read = vi.spyOn(arc, 'readContract').mockResolvedValue(20_000_000n)
+  await expect(readTestUsdcBalance(address)).resolves.toBe(20_000_000n)
+  expect(read).toHaveBeenCalledWith(expect.objectContaining({ functionName: 'balanceOf', args: [address] }))
 })
 
 it('uses the chosen authorized address for wallet actions even when MetaMask lists it second', async () => {
@@ -97,6 +85,18 @@ it('checks the real provider chain and selected account before permitting a wall
   active = [privateKeyToAccount(generatePrivateKey()).address]
   await expect(checkedWallet(account)).rejects.toThrow('wallet changed')
   expect(request.mock.calls.some(([call]) => call.method === 'eth_sendTransaction')).toBe(false)
+})
+
+it('requests MetaMask account permission before a staked-entry signature', async () => {
+  const account = privateKeyToAccount(generatePrivateKey()).address
+  const request = vi.fn(async ({ method }) => {
+    if (method === 'eth_accounts' || method === 'eth_requestAccounts') return [account]
+    if (method === 'eth_chainId') return '0x4cef52'
+    throw new Error('Unexpected wallet call')
+  })
+  stubWallet(request)
+  await expect(checkedWallet(account, true)).resolves.toBeDefined()
+  expect(request.mock.calls.some(([call]) => call.method === 'eth_requestAccounts')).toBe(true)
 })
 
 it('blocks variable-stake deposits before allowance or transactions when the chain disagrees', async () => {

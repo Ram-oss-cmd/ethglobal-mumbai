@@ -21,7 +21,7 @@ export default function PrizeFunding({ member, prize, seat, ready, lobby, online
   const fundingMessage = prize?.message
   const stakeUnits = prize?.stakeUnits ?? Number(ENTRY_AMOUNT)
   const stake = BigInt(stakeUnits)
-  const lowBalance = typeof balance === 'bigint' && balance < stake * 10n ** 12n
+  const lowBalance = typeof balance === 'bigint' && balance < stake
   const ownPayout = prize?.settlementTx && result && !prize.deferredPayouts?.some(payout => isAddressEqual(payout.player, member.address))
     ? (result.kind === 'win' ? result.winner === seat ? 2n * stake : 0n : stake) : 0n
 

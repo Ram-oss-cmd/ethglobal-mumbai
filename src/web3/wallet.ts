@@ -33,6 +33,11 @@ export function injectedWallet() {
   return { provider, client: createWalletClient({ chain: ARC_TESTNET, transport: custom(provider) }) }
 }
 
+/** Read the six-decimal ERC-20 balance that the escrow actually deposits. */
+export function readTestUsdcBalance(account: Address) {
+  return arc.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: 'balanceOf', args: [account] })
+}
+
 export async function switchToArc() {
   const { client, provider } = injectedWallet()
   const switchChain = () => provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: numberToHex(ARC_TESTNET.id) }] })
@@ -46,10 +51,10 @@ export async function switchToArc() {
 }
 
 /** Check the provider again before every signature or transaction, including after approval. */
-export async function checkedWallet(account: Address) {
+export async function checkedWallet(account: Address, requestAccess = false) {
   if (window.localStorage.getItem(WALLET_SIGN_IN_KEY) !== '1') throw new Error('Sign in to Wallet Rush first.')
   const { client } = injectedWallet()
-  const [chain, addresses] = await Promise.all([client.getChainId(), client.getAddresses()])
+  const [chain, addresses] = await Promise.all([client.getChainId(), requestAccess ? client.requestAddresses() : client.getAddresses()])
   if (window.localStorage.getItem(WALLET_SIGN_IN_KEY) !== '1') throw new Error('Sign in to Wallet Rush first.')
   if (chain !== ARC_TESTNET.id) throw new Error('Switch your wallet to Arc Testnet first.')
   const selected = selectedWalletAccount(addresses, window.sessionStorage?.getItem(WALLET_ACCOUNT_KEY))

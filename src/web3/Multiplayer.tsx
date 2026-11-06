@@ -81,7 +81,9 @@ export default function Multiplayer({ account, balance, walletActions }: {
     setBusy(true)
     report('')
     void action().catch(failure => {
-      report(failure instanceof Error ? failure.message.split('\n')[0] : 'Wallet request failed.')
+      const message = failure instanceof Error ? failure.message.split('\n')[0] : 'Wallet request failed.'
+      report(/not been authorized|unauthorized/i.test(message)
+        ? 'Approve this MetaMask account when prompted, then continue.' : message)
     }).finally(() => setBusy(false))
   }
 
@@ -92,7 +94,8 @@ export default function Multiplayer({ account, balance, walletActions }: {
         setChain(ARC_TESTNET.id)
         if (eligible) return
       }
-      const wallet = await checkedWallet(account)
+      // Request account access here so a fresh invitee can approve before the signature prompt.
+      const wallet = await checkedWallet(account, true)
       const challenge = await prizeRequest<{ message: string; nonce: string }>('wallet-challenge', { wallet: account })
       const signature = await wallet.signMessage({ account, message: challenge.message })
       const authenticated = await prizeRequest<{ wallet: Address; token: string }>('wallet-verify', { nonce: challenge.nonce, signature })
@@ -124,7 +127,7 @@ export default function Multiplayer({ account, balance, walletActions }: {
 
   const onArc = chain === ARC_TESTNET.id
   const variable = config?.escrowVersion === '2'
-  const lowBalance = typeof balance === 'bigint' && balance < ENTRY_AMOUNT * 10n ** 12n
+  const lowBalance = typeof balance === 'bigint' && balance < ENTRY_AMOUNT
   const canCreate = !staked || (config?.enabled === true && (variable || !lowBalance))
   const stakedRoom = room?.id.startsWith('prize-') === true
   const eligible = session?.wallet.toLowerCase() === account.toLowerCase()

@@ -56,3 +56,4 @@
 - [x] Enlarged the ghost portraits by about 10% and matched the sad portrait to the dog's sprite dimensions. Edge verified both sizes and the compact returning dots. All 60 tests, lint, and build passed.
 - [x] Centered Elon Sad over the dog and extended the overlay by 100 ms. Edge verified the placement and extra display time while the ghost returned. All 60 tests, lint, and build passed.
 - [x] Corrected six-decimal Arc USDC display, made failed escrow openings safely retryable without freeing uncertain onchain matches, and extended immutable Arkiv replay retention to one year. Targeted Arc and prize tests, full 61-test suite, lint, type checks, and production build passed.
+- [x] Read the escrow ERC-20 balance instead of Arc native gas balance, corrected all stake balance checks, and requested MetaMask account permission before a prize signature. All 62 tests, lint, and production build passed.
