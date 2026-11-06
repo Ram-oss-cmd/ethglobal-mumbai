@@ -15,9 +15,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arkiv-network/sdk": "^1.0.1",
+    "@worldcoin/idkit": "^4.6.0",
     "phaser": "^3.90.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "viem": "^2.57.16",
     "ws": "^8.22.1"
   },
   "devDependencies": {

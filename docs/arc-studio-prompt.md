@@ -1,0 +1,16 @@
+# Paste this into a new Arc Studio project
+
+Build **Wallet Rush Escrow** for the ETHGlobal Mumbai 2026 Arc bounty “Best Smart Contracts with Advanced Stablecoin Logic, In Arc Studio.” Use Arc Testnet only (chain 5042002, RPC https://rpc.testnet.arc.network, explorer https://testnet.arcscan.app). Use the official USDC ERC-20 interface at `0x3600000000000000000000000000000000000000`. 10 USDC is 10,000,000 ERC-20 units. Gas uses the network's native USDC accounting.
+
+Create, test, and connect this contract to a small two-wallet demo page **inside Arc Studio**. Wallet Rush's existing arcade server will supply signed outcomes from verified replays. Use a constructor-supplied, immutable referee address with no admin withdrawal. Keep the external contract ABI and typed-data schema below, so the arcade can integrate the Studio export.
+
+- `constructor(address referee)`. Use audited OpenZeppelin SafeERC20, ECDSA, EIP712 and ReentrancyGuard. EIP-712 name `Wallet Rush Escrow`, version `1`, bound to chain and verifying contract.
+- `openMatch(bytes32 matchId,address playerA,address playerB,uint64 depositDeadline,uint64 refundAfter)` is referee-only. Reject zero/duplicate IDs, zero/duplicate participants, and expired or invalid deadlines. Record A/B as immutable for the match.
+- `deposit(bytes32 matchId)` allows each listed wallet to deposit exactly 10 test USDC once before its deposit deadline. Require real token transfer and protect state changes against reentrancy.
+- `settle(bytes32 matchId,uint8 outcome,uint32 scoreA,uint32 scoreB,uint64 validUntil,bytes32 replayDigest,bytes signature)` is permissionless with a valid referee signature, both deposits, and a live refund window. EIP-712 primary type `Result(bytes32 matchId,address playerA,address playerB,uint8 outcome,uint32 scoreA,uint32 scoreB,uint64 validUntil,bytes32 replayDigest)`. Outcome 1 pays A, 2 pays B, 3 returns both deposits for a draw, 4 returns both deposits for an eligible cancellation. For wins require winning score to exceed losing score; for a draw require equal scores. Check expiry, matching participants, signature, and nonzero replay digest. Mark finalized before paying.
+- `refundExpired(bytes32 matchId)` is permissionless after deposit deadline if the pool was never filled, or after refundAfter for any unsettled pool. Return only amounts actually deposited to their original depositors. A finalized match cannot be reopened, funded, settled or refunded again.
+- `getMatch(bytes32 matchId)` returns, in order, `(address playerA,address playerB,uint64 depositDeadline,uint64 refundAfter,bool depositedA,bool depositedB,bool finalized)`. Emit `MatchOpened`, `Deposited`, `Settled(bytes32 indexed matchId,uint8 outcome,bytes32 replayDigest)`, and `Refunded`.
+
+Test happy-path settlement, draw, cancellation, partial and full timeouts, wrong and expired signatures, cross-match replay, non-player and duplicate deposits, unauthorized open, and double settlement/refund. A local mock token is fine for tests only. The deployed testnet contract must use official USDC. Connect the frontend in Studio and show actual receipts with the Arc Testnet explorer. Stop before deployment until I approve the generated contract and provide the public referee address.
+
+Export the source, tests, ABI and the connected Studio app. Preserve the shareable Studio project URL.

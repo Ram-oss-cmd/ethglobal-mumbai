@@ -12,3 +12,4 @@
 - [x] Made Vite's server imports compatible with the native config loader. Default dev, native dev, and native preview served the app and accepted WebSocket joins without the loader warning. All 24 tests passed.
 - [x] Slowed actors, seeded four separated power pellets without changing the bankable dot total, and froze all actors for 350 ms after a ghost catch. All 25 tests passed, including pellet placement, freeze timing, replay version checks and WebSocket competition.
 - [x] Enlarged the blinking Ethereum diamonds, rerolled practice layouts on restart, and moved the three wallet life icons above each maze. Two Edge sessions using the LAN address verified blinking, matching duel layouts, live banking and the updated HUD. Lint and build passed.
+- [x] Added signed wallet ownership challenges and expiring prize sessions. Two tests passed with real EVM signatures, including replayed nonces, cross-wallet signatures and expiry.
