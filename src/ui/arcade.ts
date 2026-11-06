@@ -3,6 +3,7 @@ import {
   createGame, MAZE, RUN_MS, stepGame, TICK_MS, VAULT,
   type Direction, type GameState,
 } from '../game'
+import type { RunView } from '../competition/protocol'
 import wallet from './assets/wallet.svg'
 import tracer from './assets/tracer.svg'
 import snare from './assets/snare.svg'
@@ -35,7 +36,7 @@ export type Hud = {
   powerSeconds: number
 }
 
-/** Rounds the wall contours at grid intersections without changing collisions. */
+/** Draws the contour of the solid maze tiles without changing collisions. */
 function drawMaze(scene: Phaser.Scene) {
   const texture = scene.textures.createCanvas('walls', WIDTH, HEIGHT)!
   const ctx = texture.context
@@ -63,7 +64,8 @@ function drawMaze(scene: Phaser.Scene) {
       const joins = ports.filter((_, i) => edges[i])
       const connect = ([ax, ay]: number[], [bx, by]: number[]) => {
         ctx.moveTo(left + ax, top + ay)
-        ctx.quadraticCurveTo(left, top, left + bx, top + by)
+        ctx.lineTo(left, top)
+        ctx.lineTo(left + bx, top + by)
       }
       if (joins.length === 2) connect(joins[0], joins[1])
       if (joins.length === 4) {
@@ -71,7 +73,26 @@ function drawMaze(scene: Phaser.Scene) {
       }
     }
   }
-  ctx.lineCap = 'round'
+  // House edges adjoining public corridors are solid except for the ghost door.
+  MAZE.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      if (row[x] !== 'G') continue
+      const left = x * TILE
+      const top = y * TILE
+      const right = left + TILE
+      const bottom = top + TILE
+      function boundary(cell: string | undefined, x1: number, y1: number, x2: number, y2: number) {
+        if (cell === undefined || cell === '#' || cell === 'G' || cell === 'D') return
+        ctx.moveTo(x1, y1)
+        ctx.lineTo(x2, y2)
+      }
+      boundary(row[x - 1], left, top, left, bottom)
+      boundary(row[x + 1], right, top, right, bottom)
+      boundary(MAZE[y - 1]?.[x], left, top, right, top)
+      boundary(MAZE[y + 1]?.[x], left, bottom, right, bottom)
+    }
+  })
+  ctx.lineCap = 'square'
   ctx.lineWidth = 6
   ctx.strokeStyle = '#131d83'
   ctx.stroke()
@@ -81,6 +102,10 @@ function drawMaze(scene: Phaser.Scene) {
   scene.add.image(0, 0, texture).setOrigin(0)
 
   const g = scene.add.graphics()
+  MAZE.forEach((row, y) => {
+    const door = row.indexOf('D')
+    if (door >= 0) g.fillStyle(0xffa8ce).fillRect(door * TILE + 2, y * TILE - 1, TILE - 4, 3)
+  })
   const vaultX = VAULT.x * TILE
   const threshold = VAULT.y * TILE
   g.fillStyle(0xafff65).fillRect(vaultX + 1, threshold - 1, TILE - 2, 3)
@@ -92,26 +117,27 @@ function drawMaze(scene: Phaser.Scene) {
   g.fillStyle(BACKGROUND).fillRect(vaultX + 13, threshold + 15, 2, 4)
 }
 
-function drawPickups(g: Phaser.GameObjects.Graphics, state: GameState) {
-  g.clear()
+function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObjects.Graphics, state: RunView) {
+  dots.clear().fillStyle(0xffba9d)
   for (const dot of state.dots) {
     const x = (dot.x + 0.5) * TILE
     const y = (dot.y + 0.5) * TILE
-    g.fillStyle(0xffba9d).fillCircle(x, y, 2.6)
+    dots.fillCircle(x, y, 2.6)
   }
+  pellets.clear()
   for (const pellet of state.pellets) {
     const x = (pellet.x + 0.5) * TILE
     const y = (pellet.y + 0.5) * TILE
-    g.fillStyle(0xffe5cf).fillTriangle(x, y - 9, x - 6, y + 1, x, y + 4)
-    g.fillStyle(0xeea078).fillTriangle(x, y - 9, x + 6, y + 1, x, y + 4)
-    g.fillStyle(0xffd2b5).fillTriangle(x - 6, y + 3, x, y + 6, x, y + 9)
-    g.fillStyle(0xc77255).fillTriangle(x + 6, y + 3, x, y + 6, x, y + 9)
+    pellets.fillStyle(0xffe5cf).fillTriangle(x, y - 9, x - 6, y + 1, x, y + 4)
+    pellets.fillStyle(0xeea078).fillTriangle(x, y - 9, x + 6, y + 1, x, y + 4)
+    pellets.fillStyle(0xffd2b5).fillTriangle(x - 6, y + 3, x, y + 6, x, y + 9)
+    pellets.fillStyle(0xc77255).fillTriangle(x + 6, y + 3, x, y + 6, x, y + 9)
   }
 }
 
 function actor(scene: Phaser.Scene, texture: string) {
-  const image = scene.add.image(0, 0, texture).setDisplaySize(26, 26)
-  const wrap = scene.add.image(0, 0, texture).setDisplaySize(26, 26)
+  const image = scene.add.image(0, 0, texture).setDisplaySize(26, 26).setAlpha(0)
+  const wrap = scene.add.image(0, 0, texture).setDisplaySize(26, 26).setAlpha(0)
   return (position: GameState['player'], nextTexture: string, alpha = 1) => {
     const x = Math.round((position.x + 0.5) * TILE)
     const y = Math.round((position.y + 0.5) * TILE)
@@ -124,34 +150,43 @@ function actor(scene: Phaser.Scene, texture: string) {
   }
 }
 
-export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) {
+export function steeringKey(event: KeyboardEvent) {
+  if (!event.altKey && !event.ctrlKey && !event.metaKey) return keys.get(event.key.toLowerCase())
+}
+
+export function hudFor(state: RunView, ready = false): Hud {
+  return {
+    status: ready ? 'ready' : state.status,
+    carried: state.carried,
+    banked: state.banked,
+    lives: state.lives,
+    seconds: Math.ceil((RUN_MS - state.elapsedMs) / 1000),
+    powerSeconds: state.status === 'playing' ? Math.max(0, Math.ceil((state.frightenedUntilMs - state.elapsedMs) / 1000)) : 0,
+  }
+}
+
+type Actor = RunView['player']
+
+function interpolate(from: Actor | undefined, to: Actor, ratio: number): Actor {
+  if (!from || ratio === 1) return to
+  const columns = MAZE[0].length
+  let dx = to.x - from.x
+  const dy = to.y - from.y
+  if (Math.abs(dx) > columns / 2) dx -= Math.sign(dx) * columns
+  // Spawn teleports and long gaps must never animate across walls.
+  if (Math.abs(dx) + Math.abs(dy) > 0.65) return to
+  const x = ((from.x + ratio * dx + columns + 0.5) % columns) - 0.5
+  return { ...to, x, y: from.y + ratio * dy }
+}
+
+export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFrame?: (now: number) => void) {
   const reducedEffects = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  let state = createGame(PRACTICE_SEED)
-  let startedAt: number | undefined
-  let input: Direction | undefined
-  let previous: Hud | undefined
-  let draw: (() => void) | undefined
-
-  function syncHud() {
-    const hud: Hud = {
-      status: startedAt === undefined ? 'ready' : state.status,
-      carried: state.carried,
-      banked: state.banked,
-      lives: state.lives,
-      seconds: Math.ceil((RUN_MS - state.elapsedMs) / 1000),
-      powerSeconds: state.status === 'playing' ? Math.max(0, Math.ceil((state.frightenedUntilMs - state.elapsedMs) / 1000)) : 0,
-    }
-    if (!previous || previous.status !== hud.status || previous.carried !== hud.carried ||
-        previous.banked !== hud.banked || previous.lives !== hud.lives ||
-        previous.seconds !== hud.seconds || previous.powerSeconds !== hud.powerSeconds) {
-      previous = hud
-      onHud(hud)
-    }
-  }
-
-  function steer(direction: Direction) {
-    if (startedAt !== undefined && state.status === 'playing') input = direction
-  }
+  let state: RunView | null = null
+  let previous: RunView | null = null
+  let spritesVisible = false
+  let changed = false
+  let receivedAt = 0
+  let draw: ((now: number) => void) | undefined
 
   const game = new Phaser.Game({
     type: Phaser.CANVAS,
@@ -160,7 +195,7 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
     height: HEIGHT,
     backgroundColor: BACKGROUND,
     pixelArt: true,
-    input: { keyboard: { target: parent } },
+    input: { keyboard: false },
     audio: { noAudio: true },
     banner: false,
     scene: {
@@ -170,51 +205,87 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
       create(this: Phaser.Scene) {
         this.game.canvas.setAttribute('aria-hidden', 'true')
         drawMaze(this)
-        const pickups = this.add.graphics()
-        const ghosts = state.ghosts.map((ghost) => actor(this, ghost.id))
+        const dots = this.add.graphics()
+        const pellets = this.add.graphics()
+        const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id))
         const player = actor(this, 'wallet')
 
-        draw = () => {
-          drawPickups(pickups, state)
-          const visible = state.status === 'playing'
+        draw = (now) => {
+          if (!state) return
+          if (changed) {
+            drawPickups(dots, pellets, state)
+            changed = false
+          }
+          pellets.setAlpha(reducedEffects || Math.floor(now / 250) % 2 === 0 ? 1 : 0)
+          const duration = previous ? state.elapsedMs - previous.elapsedMs : 0
+          const ratio = duration > 0 ? Math.min(1, (now - receivedAt) / Math.min(duration, 80)) : 1
+          const { elapsedMs, frightenedUntilMs } = state
+          const remainingPower = frightenedUntilMs - elapsedMs
+          const flashing = !reducedEffects && remainingPower <= 1400 && Math.floor(remainingPower / 160) % 2 === 0
           state.ghosts.forEach((ghost, i) => {
-            const remainingPower = state.frightenedUntilMs - state.elapsedMs
-            const flashing = !reducedEffects && remainingPower <= 1400 && Math.floor(remainingPower / 160) % 2 === 0
             let texture: keyof typeof sprites = ghost.id
             if (ghost.mode === 'returning' || ghost.mode === 'recovering') texture = 'returning'
             if (ghost.mode === 'frightened' && !flashing) texture = 'frightened'
-            ghosts[i](ghost, texture, Number(visible))
+            ghosts[i](interpolate(previous?.ghosts[i], ghost, ratio), texture, Number(spritesVisible))
           })
-          const protectedPlayer = state.invulnerableUntilMs > state.elapsedMs
-          const dimPlayer = protectedPlayer && (reducedEffects || Math.floor(state.elapsedMs / 150) % 2 === 1)
-          player(state.player, 'wallet', visible ? (dimPlayer ? 0.6 : 1) : 0)
+          const protectedPlayer = state.invulnerableUntilMs > elapsedMs
+          const dimPlayer = protectedPlayer && (reducedEffects || Math.floor(elapsedMs / 150) % 2 === 1)
+          player(interpolate(previous?.player, state.player, ratio), 'wallet', spritesVisible ? (dimPlayer ? 0.6 : 1) : 0)
         }
-
-        this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-          const direction = keys.get(event.key.toLowerCase())
-          if (!direction || event.altKey || event.ctrlKey || event.metaKey ||
-              startedAt === undefined || state.status !== 'playing') return
-          event.preventDefault()
-          if (!event.repeat) steer(direction)
-        })
-        draw()
-        syncHud()
+        onReady?.()
       },
       update() {
-        if (startedAt === undefined || (state.status !== 'playing' && state.queuedDots.length === 0)) return
-        const target = performance.now() - startedAt
-        if (state.elapsedMs + state.terminalRespawnMs + TICK_MS > target) return
-
-        // Pending dots still animate after the scoreboard freezes.
-        while (state.elapsedMs + state.terminalRespawnMs + TICK_MS <= target &&
-               (state.status === 'playing' || state.queuedDots.length > 0)) {
-          stepGame(state, input)
-          input = undefined
-        }
-        draw?.()
-        syncHud()
+        const now = performance.now()
+        onFrame?.(now)
+        draw?.(now)
       },
     },
+  })
+
+  return {
+    present(next: RunView, smooth = false, visible = true) {
+      previous = smooth && state?.lives === next.lives && next.status === 'playing' ? state : null
+      state = next
+      spritesVisible = visible
+      changed = true
+      receivedAt = performance.now()
+    },
+    destroy: () => game.destroy(true),
+  }
+}
+
+export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) {
+  let state = createGame(PRACTICE_SEED)
+  let startedAt: number | undefined
+  let input: Direction | undefined
+  let previous: Hud | undefined
+
+  function syncHud() {
+    const hud = hudFor(state, startedAt === undefined)
+    if (!previous || previous.status !== hud.status || previous.carried !== hud.carried ||
+        previous.banked !== hud.banked || previous.lives !== hud.lives ||
+        previous.seconds !== hud.seconds || previous.powerSeconds !== hud.powerSeconds) {
+      previous = hud
+      onHud(hud)
+    }
+  }
+
+  const board = createBoard(parent, () => {
+    board.present(state, false, false)
+    syncHud()
+  }, now => {
+    if (startedAt === undefined || (state.status !== 'playing' && state.queuedDots.length === 0)) return
+    const target = now - startedAt
+    if (state.elapsedMs + state.terminalRespawnMs + TICK_MS > target) return
+
+    // Pending dots still animate after the scoreboard freezes.
+    while (state.elapsedMs + state.terminalRespawnMs + TICK_MS <= target &&
+           (state.status === 'playing' || state.queuedDots.length > 0)) {
+      stepGame(state, input)
+      input = undefined
+    }
+    board.present(state)
+    syncHud()
   })
 
   return {
@@ -222,10 +293,12 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
       state = createGame(PRACTICE_SEED)
       input = undefined
       startedAt = performance.now()
-      draw?.()
+      board.present(state)
       syncHud()
     },
-    steer,
-    destroy: () => game.destroy(true),
+    steer(direction: Direction) {
+      if (startedAt !== undefined && state.status === 'playing') input = direction
+    },
+    destroy: board.destroy,
   }
 }

@@ -33,6 +33,72 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
   padding: 16px 0 12px;
 }
 
+.cabinet-live { width: min(calc(100% - 24px), 1280px); }
+
+.mode-switch {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.mode-switch button,
+.match-actions button,
+.match-actions input {
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid #565055;
+  border-radius: 0;
+  font: inherit;
+}
+
+.mode-switch button[aria-pressed="true"],
+.match-actions button:hover:not(:disabled) {
+  color: var(--yellow);
+  border-color: var(--yellow);
+}
+
+.match-actions button:disabled { opacity: 0.5; cursor: default; }
+.match-actions input { background: #111; min-width: 0; }
+.lobby { margin: 40px auto; max-width: 620px; }
+.lobby p { color: #b5ada5; line-height: 1.5; }
+.match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.match-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-block: 1px solid #332d32;
+}
+
+.match-bar strong { color: var(--yellow); overflow-wrap: anywhere; }
+.match-status { min-height: 50px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.match-status p { margin-block: 8px; }
+.match-status [role="alert"] { color: #ff6262; }
+.match-status .play { padding: 6px 12px; }
+.duel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.match-board { min-width: 0; }
+.match-board h2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  margin: 0 4% 10px;
+  font-size: clamp(.75rem, 2.8vw, 1rem);
+  color: var(--yellow);
+}
+.match-board h2 small { color: #b5ada5; }
+.duel .scoreboard dt { font-size: clamp(.55rem, 1.8vw, .75rem); }
+.duel .scoreboard dd { font-size: clamp(.9rem, 3vw, 1.6rem); }
+.duel .life-meter img { width: clamp(14px, 4vw, 25px); height: auto; }
+.replay-actions { justify-content: center; margin-top: 10px; }
+.replay { max-width: 650px; margin-inline: auto; }
+.replay-slider { display: grid; gap: 8px; margin-bottom: 12px; }
+.replay-slider input { accent-color: var(--yellow); }
+
 .scoreboard {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -141,4 +207,5 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 
 @media (pointer: coarse), (max-width: 680px) {
   .dpad { display: grid; }
+  .duel { gap: 6px; }
 }
