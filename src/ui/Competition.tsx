@@ -160,7 +160,7 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
   const status = connection === 'closed' ? 'Connection closed'
     : connection === 'connecting' ? 'Joining match…'
     : connection === 'reconnecting' ? 'Connection lost · Reconnecting…'
-    : result ? resultText(result, seat)
+    : result ? undefined
     : snapshot?.phase === 'paused' ? 'Match paused · Waiting for reconnection'
     : running ? (contending ? (canSteer ? 'Match live' : 'Match live · Respawning') : 'Run finished · Spectating')
     : !opponent?.connected ? 'Waiting for opponent'
@@ -201,14 +201,22 @@ function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; 
         </div>
       </header>
       <div className="match-status">
-        <p role="status">{status}</p>
+        {status && <p role="status">{status}</p>}
         {error && <p role="alert">{error}</p>}
         {!prize && connection === 'online' && snapshot?.phase === 'lobby' && !own?.ready && (
           <button className="play" type="button" onClick={() => send({ type: 'ready' })}>Ready</button>
         )}
       </div>
+      {result && replay === null && (
+        <section className="result-panel" aria-label="Match result">
+          <p>Game over</p>
+          <h2 role="status">{result.kind === 'win' ? (result.winner === seat ? 'Congratulations, you win!' : 'Opponent wins')
+            : result.kind === 'draw' ? 'Draw' : 'Match canceled'}</h2>
+          <p>{resultReason(result)}{result.kind === 'win' && result.winner !== seat && ' Try again next time.'}</p>
+        </section>
+      )}
       {prize && join && <PrizeFunding member={prize} prize={snapshot?.prize} seat={seat} ready={Boolean(own?.ready)}
-        matchId={matchId} onReady={() => send({ type: 'ready' })} />}
+        matchId={matchId} result={result} onReady={() => send({ type: 'ready' })} />}
       {record && replay !== null ? (
         <Replay key={replay} record={record} seat={replay} leave={() => setReplay(null)} />
       ) : (
@@ -263,11 +271,10 @@ function MatchBoard({ title, run, smooth = false }: { title: string; run?: RunVi
   )
 }
 
-function resultText(result: MatchResult, seat: Seat) {
-  if (result.kind === 'canceled') return 'Match canceled · Disconnect grace expired'
-  if (result.kind === 'draw') return result.reason === 'full-clear' ? 'Draw · Simultaneous full clear' : 'Draw · Equal banked scores'
-  const outcome = result.winner === seat ? 'You win' : 'Opponent wins'
-  return `${outcome} · ${result.reason === 'full-clear' ? 'Full clear' : 'Higher banked score'}`
+function resultReason(result: MatchResult) {
+  if (result.kind === 'canceled') return 'A player’s connection did not recover in time.'
+  if (result.kind === 'draw') return result.reason === 'full-clear' ? 'Both players cleared the maze together.' : 'Both players banked the same score.'
+  return result.reason === 'full-clear' ? 'The winner banked every dot.' : 'The higher banked score wins.'
 }
 
 export function Replay({ record, seat, leave }: { record: MatchRecord; seat: Seat; leave: () => void }) {

@@ -29,3 +29,4 @@
 - [x] Made Arkiv history fail promptly on a throttled node and use the current Arc explorer for settlement links. Both history tests passed, including a one-hour retry response, along with TypeScript checks.
 - [x] Verified the production arcade with independent Edge sessions for live banking, seat recovery, a winner, a draw, disconnect cancellation, and replay. All 46 app tests and 119 escrow tests passed. Arc confirmed the deployment and funded referee, and Rabdi answered a public read.
 - [x] Added MetaMask entry and Single player, Multiplayer, and Match history navigation. Edge verified entry, disabled wallet options, casual room reload, disconnect, and public history. All 47 app tests, lint, and the production build passed.
+- [x] Added a Game over panel with distinct win, loss, draw, and cancellation messages, plus confirmed prize payout or refund amounts. All 47 app tests, lint, build, and a two-session Edge result smoke test passed.

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { formatUnits, isAddressEqual, type Hex } from 'viem'
-import { arcTxUrl, ESCROW_ABI, USDC_DECIMALS } from '../arc/chain.ts'
-import type { PrizeState, Seat } from '../competition/protocol.ts'
+import { arcTxUrl, ENTRY_AMOUNT, ESCROW_ABI, USDC_DECIMALS } from '../arc/chain.ts'
+import type { MatchResult, PrizeState, Seat } from '../competition/protocol.ts'
 import type { PrizeMember } from './api'
 import { arc, depositUSDC } from './wallet'
 
-export default function PrizeFunding({ member, prize, seat, ready, onReady, matchId }: {
-  member: PrizeMember; prize?: PrizeState; seat: Seat; ready: boolean; onReady: () => void; matchId: string
+export default function PrizeFunding({ member, prize, seat, ready, onReady, matchId, result }: {
+  member: PrizeMember; prize?: PrizeState; seat: Seat; ready: boolean; onReady: () => void; matchId: string; result?: MatchResult
 }) {
   const [funded, setFunded] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -14,6 +14,8 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
   const [depositReceipt, setDepositReceipt] = useState<Hex>()
   const [error, setError] = useState('')
   const matchKey = prize?.matchKey
+  const ownPayout = prize?.settlementTx && result && !prize.deferredPayouts?.some(payout => isAddressEqual(payout.player, member.address))
+    ? (result.kind === 'win' ? result.winner === seat ? 2n * ENTRY_AMOUNT : 0n : ENTRY_AMOUNT) : 0n
 
   useEffect(() => {
     if (!matchKey || prize.stage !== 'funding') return
@@ -62,6 +64,7 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
       {depositReceipt ? <a href={arcTxUrl(depositReceipt)}>Arc deposit receipt</a>
         : hash && <a href={arcTxUrl(hash)}>Submitted Arc transaction</a>}
       {prize?.settlementTx && <a href={arcTxUrl(prize.settlementTx)}>Arc settlement receipt</a>}
+      {ownPayout > 0n && <p role="status">{formatUnits(ownPayout, USDC_DECIMALS)} test USDC {result?.kind === 'win' ? 'transferred to' : 'refunded to'} your wallet.</p>}
       {prize?.deferredPayouts?.map(({ player, amount }) => (
         <p key={player} role="status">{formatUnits(BigInt(amount), USDC_DECIMALS)} test USDC was deferred for
           {' '}{isAddressEqual(player, member.address) ? 'your wallet. Check “Claim deferred test USDC” above.' : 'the other wallet.'}</p>
