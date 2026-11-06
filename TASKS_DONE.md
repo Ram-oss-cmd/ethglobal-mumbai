@@ -49,3 +49,4 @@
 - [x] Widened the desktop maze by about 5%, thinned its uniform wall strokes, and enlarged the dog, ghosts, collectibles, and star video. Edge verified the full board at 1440×900, mobile fit, video playback, banking, and the 90-second run. All 59 tests, lint, and build passed.
 - [x] Doubled the in-game dog and ghost artwork and moved the wallet menu to the page corner. Edge verified the 2× rendering, unchanged board dimensions, responsive wallet placement, and banking. All 59 tests, lint, and build passed.
 - [x] Permanently removed carried dots on a hit in new runs. All 28 targeted tests and type checking passed, including repeated losses, preserved banked scores, and verification of an archived run with its original dot return.
+- [x] Replaced both hit sprites with the supplied PNGs. Edge loaded byte-identical copies and displayed both hit directions in play.
