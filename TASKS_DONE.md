@@ -17,3 +17,4 @@
 - [x] Added World IDKit v4 Proof of Human and a durable, wallet-bound eligibility ledger. Tests with a controlled verifier passed for success, cancellation, malformed proof rejection and cross-wallet duplicate rejection after restart.
 - [x] Added the Arc Testnet escrow client for receipt-verified opening, funding checks and EIP-712 settlement. Three adapter tests passed. The live Arc RPC confirmed chain ID 5042002 and official USDC's six ERC-20 decimals.
 - [x] Added the Rabdi match schema, replay compression and browser-side verification. Replay round-trip and tamper checks passed, and the live public endpoint answered a direct history query.
+- [x] Wired wallet connection, World eligibility, dual escrow consent, funding readiness, settlement receipts and public replay routes into the app. All 37 tests, lint and build passed. Edge verified injected-wallet switching, a real Arc balance read and a direct Rabdi query.

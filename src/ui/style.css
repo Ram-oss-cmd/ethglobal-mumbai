@@ -37,6 +37,7 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 
 .mode-switch {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 4px;
   margin-bottom: 14px;
@@ -62,6 +63,11 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 .match-actions input { background: #111; min-width: 0; }
 .lobby { margin: 40px auto; max-width: 620px; }
 .lobby p { color: #b5ada5; line-height: 1.5; }
+.wallet-address { overflow-wrap: anywhere; }
+.prize-panel details { margin-top: 16px; }
+.prize-panel summary { cursor: pointer; }
+.prize-panel form { margin-top: 8px; }
+a { color: #a8afff; }
 .match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 .match-bar {

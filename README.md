@@ -22,7 +22,7 @@ npm run preview   # Serve the production build after npm run build
 ## Two-player competition
 
 1. Open the app in two browser sessions. Select **Two players** in each and join the same room ID, or share the invite link.
-2. Both players click **Ready**. Each client controls its own maze and sees both runs. The server starts them on the same tick with the same seed.
+2. Both players click **Ready**. Each client controls the left maze and sees the opponent on the right. Both runs start on the same tick with a shared seed and distinct, replayable pellet layouts.
 3. After the result, use the replay controls to reconstruct either player's run or download the match record.
 
 For two laptops on the same trusted Wi-Fi or LAN, run `npm run dev -- --host 0.0.0.0` on one laptop and leave it running. On both laptops, open the **Network** URL Vite prints, such as `http://192.168.1.23:5173`. Use `ipconfig` on the host to find its IPv4 address if needed. If Windows Firewall prompts, allow Node.js on private networks. Create the match on one laptop, share the room code or invite link, and click **Ready** on both. For two sessions on the same laptop, use `http://localhost:5173` in a regular window and a private window. [Vite LAN options](https://vite.dev/config/server-options.html#server-host), [Windows ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig)
@@ -37,7 +37,7 @@ An active player's disconnect pauses both clocks for up to 10 seconds of cumulat
 
 - Click **Start practice**. Steer with the arrow keys, WASD, or the on-screen pad on touch devices. Tap before a turn to buffer it.
 - Move **down** from spawn for a quick first deposit. Crossing the green line at the bottom transfers all carried points. Ghosts stay outside the vault, and the clock keeps running inside.
-- Find the four blinking Ethereum diamonds scattered through the corridors. Practice restarts roll a new layout, and both players in a match share one layout. Catching a frightened ghost freezes movement for 350 ms while preserving the remaining power-up.
+- Find the four blinking Ethereum diamonds scattered through the corridors. Practice restarts roll a new layout. In duels the players get different diamond locations. Catching a frightened ghost freezes movement for 350 ms while preserving the remaining power-up.
 - A hit costs one life and drops your carried points. Everyone holds their position for 1.5 seconds, then the wallet respawns and the ghosts resume from their positions. The match timer keeps running. Dots return to random spots on your route after staggered 0.9–1.2 second delays. An occupied spot waits until clear. Banked points stay secured for the run.
 
 ## Checks
@@ -50,10 +50,22 @@ npm run build
 
 ## Engine and artwork
 
-`src/game/` owns the rules. `createGame(seed)` creates a fresh run, and `stepGame(state, direction?)` advances it by one 10 ms tick. Replays need the seed, matching engine version, and direction changes indexed by tick. Use commit `0685a24` to verify previously exported `wallet-rush-2` records. The same inputs reproduce the scores, ghost states, and respawn schedule. Terminal score and time stay frozen while any scheduled dots finish returning.
+`src/game/` owns the rules. `createGame(seed)` creates a fresh run, and `stepGame(state, direction?)` advances it by one 10 ms tick. Replays need the seed, layout variant, matching engine version, and direction changes indexed by tick. Use commit `0685a24` for previously exported `wallet-rush-2` records or `856e559` for `wallet-rush-3` records. The same inputs reproduce the scores, ghost states, and respawn schedule. Terminal score and time stay frozen while any scheduled dots finish returning.
 
 Phaser reads the simulation to draw the maze and handles steering. React displays the HUD and run controls. The original placeholder sprites are SVGs in `src/ui/assets/`. Replace the asset files or change the texture imports in `src/ui/arcade.ts`, preserving each ghost's texture key.
 
 ## Hackathon provenance
 
 The starting commit contained a text note. Codex implemented this practice chunk from the team's gameplay specification, including the simulation, UI, placeholder art, and tests. Phaser, React, Vite, and the development tools are open-source dependencies. [ETHGlobal Mumbai submission rules](https://ethglobal.com/events/mumbai/info/details)
+
+## Sponsor demo
+
+See [manual setup, architecture, and demo steps](docs/sponsor-setup.md) for World IDKit, Arkiv Rabdi, and the Arc Studio Testnet escrow. The prize lobby stays closed until all sponsor settings are configured. The Arc Studio deployment and funded sponsor demo are pending.
+
+The actual Arkiv writer address will be recorded after the first confirmed write. For now, pass your configured public writer address to the query below. It reads the latest immutable match summaries owned and created by that address directly from Rabdi.
+
+```sh
+node --experimental-strip-types --input-type=module -e "import { createHistoryReader } from './src/history/reader.ts'; const rows = await createHistoryReader(process.argv[1], process.env.ARKIV_ACCESS_KEY).recent(); console.log(rows.entities)" YOUR_PUBLIC_WRITER_ADDRESS
+```
+
+Codex assisted with the app, integration code, tests, and documentation. Arc Studio is the required starting point for the escrow source and demo connection.

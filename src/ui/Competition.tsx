@@ -7,6 +7,8 @@ import { replayRun } from '../competition/run'
 import { TICK_MS } from '../game'
 import { BOARD_ASPECT, createBoard, hudFor, steeringKey } from './arcade'
 import { ArenaFooter, endings, initialHud, Scoreboard, TouchControls } from './CabinetHud'
+import PrizeFunding from '../web3/PrizeFunding'
+import type { PrizeMember } from '../web3/api'
 
 type MatchState = Extract<ServerMessage, { type: 'state' }>
 type Join = Extract<ServerMessage, { type: 'joined' }>
@@ -18,9 +20,10 @@ function inviteUrl(code: string) {
   return url
 }
 
-export default function Competition() {
+export default function Competition({ prize }: { prize?: PrizeMember }) {
   const [code, setCode] = useState(() => (new URLSearchParams(location.search).get('match') ?? '').trim().toLowerCase())
-  const [matchId, setMatchId] = useState(() => validCode.test(code) ? code : '')
+  const valid = validCode.test(code) && code.startsWith('prize-') === Boolean(prize)
+  const [matchId, setMatchId] = useState(() => valid ? code : '')
 
   function enter(id: string) {
     setMatchId(id)
@@ -35,29 +38,31 @@ export default function Competition() {
     history.replaceState(null, '', url)
   }
 
-  if (matchId) return <Match key={matchId} matchId={matchId} leave={leave} />
+  if (matchId) return <Match key={matchId} matchId={matchId} leave={leave} prize={prize} />
   return (
-    <section className="lobby" aria-label="Two-player lobby">
-      <h2>Two players</h2>
-      <p>Open the same match code in two browser sessions. Ready up to start together.</p>
+    <section className="lobby" aria-label={prize ? 'Prize lobby' : 'Two-player lobby'}>
+      <h2>{prize ? 'Prize lobby' : 'Two players'}</h2>
+      <p>{prize ? 'Share the prize code with a second verified wallet. Deposit test USDC and ready up when both deposits are confirmed.' :
+        'Open the same match code in two browser sessions. Ready up to start together.'}</p>
       <form className="match-actions" onSubmit={event => {
         event.preventDefault()
-        if (validCode.test(code)) enter(code)
+        if (valid) enter(code)
       }}>
         <label className="sr-only" htmlFor="match-code">Match code</label>
         <input id="match-code" value={code} maxLength={32} autoComplete="off" placeholder="Match code"
           onChange={event => setCode(event.target.value.trim().toLowerCase())} />
-        <button type="submit" disabled={!validCode.test(code)}>Join match</button>
+        <button type="submit" disabled={!valid}>Join match</button>
         <button type="button" onClick={() => {
           const bytes = crypto.getRandomValues(new Uint8Array(6))
-          enter(Array.from(bytes, value => value.toString(16).padStart(2, '0')).join(''))
+          const id = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
+          enter(prize ? `prize-${id}` : id)
         }}>Create match</button>
       </form>
     </section>
   )
 }
 
-function Match({ matchId, leave }: { matchId: string; leave: () => void }) {
+function Match({ matchId, leave, prize }: { matchId: string; leave: () => void; prize?: PrizeMember }) {
   const ws = useRef<WebSocket | null>(null)
   const [join, setJoin] = useState<Join | null>(null)
   const [snapshot, setSnapshot] = useState<MatchState | null>(null)
@@ -66,6 +71,7 @@ function Match({ matchId, leave }: { matchId: string; leave: () => void }) {
   const [connection, setConnection] = useState<'connecting' | 'online' | 'reconnecting' | 'closed'>('connecting')
   const [error, setError] = useState('')
   const [invite, setInvite] = useState<'copied' | 'unavailable'>()
+  const prizeToken = prize?.token
 
   useEffect(() => {
     const storageKey = `wallet-rush:seat:${matchId}`
@@ -82,7 +88,7 @@ function Match({ matchId, leave }: { matchId: string; leave: () => void }) {
       ws.current = socket
       socket.addEventListener('open', () => {
         if (lifetime.signal.aborted) return
-        socket.send(JSON.stringify({ type: 'join', matchId, resumeToken } satisfies ClientMessage))
+        socket.send(JSON.stringify({ type: 'join', matchId, resumeToken, prizeToken } satisfies ClientMessage))
       })
       socket.addEventListener('message', event => {
         if (lifetime.signal.aborted) return
@@ -138,7 +144,7 @@ function Match({ matchId, leave }: { matchId: string; leave: () => void }) {
       ws.current?.close()
       ws.current = null
     }
-  }, [matchId])
+  }, [matchId, prizeToken])
 
   function send(message: ClientMessage) {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(message))
@@ -198,10 +204,12 @@ function Match({ matchId, leave }: { matchId: string; leave: () => void }) {
       <div className="match-status">
         <p role="status">{status}</p>
         {error && <p role="alert">{error}</p>}
-        {connection === 'online' && snapshot?.phase === 'lobby' && !own?.ready && (
+        {!prize && connection === 'online' && snapshot?.phase === 'lobby' && !own?.ready && (
           <button className="play" type="button" onClick={() => send({ type: 'ready' })}>Ready</button>
         )}
       </div>
+      {prize && join && <PrizeFunding member={prize} prize={snapshot?.prize} seat={seat} ready={Boolean(own?.ready)}
+        matchId={matchId} onReady={() => send({ type: 'ready' })} />}
       {record && replay !== null ? (
         <Replay key={replay} record={record} seat={replay} leave={() => setReplay(null)} />
       ) : (

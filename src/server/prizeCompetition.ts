@@ -8,6 +8,6 @@ export interface PrizeCompetition {
   }>
   canStart(matchKey: Hex, wallets: [Address, Address]): Promise<boolean>
   complete(matchKey: Hex, record: MatchRecord, wallets: [Address, Address]): Promise<{
-    settlementTx?: Hex; historyKey?: string; message?: string
+    settlementTx?: Hex; historyKey?: string; archiveTx?: Hex; message?: string
   }>
 }

@@ -218,8 +218,10 @@ export function attachCompetition(
 
   function preparePrize(room: Room) {
     const wallets = prizeWallets(room)
-    if (!prize || room.prize?.stage !== 'waiting' || !wallets || !room.seats.every(member => member?.socket)) return
+    if (!prize || room.prize?.stage !== 'waiting' || !wallets ||
+        !room.seats.every(member => member?.socket && member.ready)) return
     room.prize.stage = 'opening'
+    for (const member of room.seats) if (member) member.ready = false
     void prize.open(room.id, wallets).then(opened => {
       const { transactionHash, ...details } = opened
       room.prize = { stage: 'funding', ...details, openTx: transactionHash }
@@ -399,7 +401,14 @@ export function attachCompetition(
       advanceRoom(room, time)
       if (socket.readyState !== WebSocket.OPEN) return
       if (message.type === 'ready') {
-        if (room.phase !== 'lobby' || player.ready || (room.prize && room.prize.stage !== 'funding')) return
+        if (room.phase !== 'lobby' || player.ready) return
+        if (room.prize?.stage === 'waiting') {
+          player.ready = true
+          preparePrize(room)
+          publish(room, time)
+          return
+        }
+        if (room.prize && room.prize.stage !== 'funding') return
         player.ready = true
         tryStart(room, time)
         publish(room, time)

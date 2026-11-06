@@ -48,6 +48,7 @@ export interface PrizeState {
   depositDeadline?: number
   refundAfter?: number
   historyKey?: string
+  archiveTx?: `0x${string}`
   message?: string
 }
 
