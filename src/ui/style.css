@@ -35,12 +35,19 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 
 .cabinet-live { width: min(calc(100% - 24px), 1280px); }
 
+.arcade-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+}
 .mode-switch {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px;
-  margin-bottom: 14px;
+  gap: 8px;
 }
 
 .mode-switch button,
@@ -49,7 +56,7 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
   min-height: 34px;
   padding: 5px 10px;
   border: 1px solid #565055;
-  border-radius: 0;
+  border-radius: 8px;
   font: inherit;
 }
 
@@ -152,7 +159,17 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
   .wallet-choice:hover { transform: none; }
 }
 .wallet-address { overflow-wrap: anywhere; }
-.wallet-picker { justify-content: center; margin-bottom: 14px; }
+.wallet-balance {
+  margin-block: 20px;
+  padding-block: 12px;
+  border-block: 1px solid #332d32;
+}
+.wallet-balance p { margin: 0 0 5px; }
+.wallet-balance strong { color: #fff4e6; }
+.wallet-balance a { font-size: .82rem; }
+.wallet-balance p:last-child { margin: 7px 0 0; font-size: .85rem; }
+.wallet-picker { justify-content: center; }
+.wallet-picker-error { flex-basis: 100%; margin: 0; }
 .wallet-picker select {
   font: inherit;
   min-height: 34px;
@@ -165,6 +182,8 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 .prize-panel details { margin-top: 16px; }
 .prize-panel summary { cursor: pointer; }
 .prize-panel form { margin-top: 8px; }
+.prize-panel .stake-hint { margin-block: 6px 18px; font-size: .85rem; }
+#room-stake { width: 9ch; }
 a { color: #a8afff; }
 .match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
@@ -180,8 +199,13 @@ a { color: #a8afff; }
 
 .match-bar strong { color: var(--yellow); overflow-wrap: anywhere; }
 .match-status { min-height: 50px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.match-status:empty { display: none; }
 .match-status p { margin-block: 8px; }
-.match-status [role="alert"] { color: #ff6262; }
+.match-status [role="alert"], .wallet-picker-error, .prize-panel [role="alert"] {
+  padding: 5px 9px;
+  border-left: 2px solid var(--yellow);
+  color: #ded3bc;
+}
 .result-panel { text-align: center; border: 1px solid var(--yellow); padding: 10px 16px; margin-bottom: 12px; }
 .result-panel h2 { color: var(--yellow); margin: 6px 0; }
 .result-panel p { margin: 4px 0; }

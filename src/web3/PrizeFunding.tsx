@@ -5,8 +5,9 @@ import type { MatchResult, PrizeState, Seat } from '../competition/protocol.ts'
 import type { PrizeMember } from './api'
 import { arc, depositUSDC } from './wallet'
 
-export default function PrizeFunding({ member, prize, seat, ready, onReady, matchId, result, opponentConnected, onOffer, onConfirm }: {
-  member: PrizeMember; prize?: PrizeState; seat: Seat; ready: boolean; onReady: () => void; matchId: string; result?: MatchResult
+export default function PrizeFunding({ member, prize, seat, ready, lobby, online, onReady, matchId, result, opponentConnected, onOffer, onConfirm }: {
+  member: PrizeMember; prize?: PrizeState; seat: Seat; ready: boolean; lobby: boolean; online: boolean
+  onReady: () => void; matchId: string; result?: MatchResult
   opponentConnected: boolean; onOffer: (units: number) => void; onConfirm: (revision: number) => void
 }) {
   const [funded, setFunded] = useState(false)
@@ -15,25 +16,31 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
   const [depositReceipt, setDepositReceipt] = useState<Hex>()
   const [error, setError] = useState('')
   const matchKey = prize?.matchKey
+  const funding = lobby && prize?.stage === 'funding'
+  const fundingMessage = prize?.message
   const stakeUnits = prize?.stakeUnits ?? Number(ENTRY_AMOUNT)
   const stake = BigInt(stakeUnits)
   const ownPayout = prize?.settlementTx && result && !prize.deferredPayouts?.some(payout => isAddressEqual(payout.player, member.address))
     ? (result.kind === 'win' ? result.winner === seat ? 2n * stake : 0n : stake) : 0n
 
   useEffect(() => {
-    if (!matchKey || prize.stage !== 'funding') return
+    if (!matchKey || !funding) return
     const lifetime = new AbortController()
     const refresh = () => void arc.readContract({
       address: member.escrow, abi: ESCROW_ABI, functionName: 'getMatch', args: [matchKey],
     }).then(match => {
       if (!lifetime.signal.aborted) {
-        setFunded(isAddressEqual(match[seat], member.address) && match[seat === 0 ? 4 : 5] && !match[6])
+        if (isAddressEqual(match[seat], member.address) && match[seat === 0 ? 4 : 5] && !match[6]) setFunded(true)
       }
     }).catch(() => {})
     refresh()
     const interval = window.setInterval(refresh, 3_000)
     return () => { lifetime.abort(); window.clearInterval(interval) }
-  }, [matchKey, prize?.stage, member.address, member.escrow, seat])
+  }, [matchKey, funding, member.address, member.escrow, seat])
+
+  useEffect(() => {
+    if (funding && online && funded && !ready && !fundingMessage) onReady()
+  }, [funding, fundingMessage, online, funded, ready, onReady])
 
   function deposit() {
     if (!matchKey) return
@@ -51,20 +58,22 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
         <StakeOffer key={prize.offers.units[seat]} offers={prize.offers} seat={seat} ready={ready}
           variable={member.version === '2'} opponentConnected={opponentConnected} onOffer={onOffer} onConfirm={onConfirm} />
       )}
-      {prize?.stage === 'free' && !result && (
+      {prize?.stage === 'free' && lobby && (
         <div className="match-actions">
           <p>Free match · 0 test USDC</p>
           <button type="button" disabled={ready} onClick={onReady}>{ready ? 'Ready' : 'Ready to play'}</button>
         </div>
       )}
-      {prize?.stage === 'opening' && <p role="status">Opening escrow on Arc Testnet…</p>}
-      {prize?.stage === 'funding' && (
+      {prize?.stage === 'opening' && <p role="status">Preparing your match on Arc Testnet…</p>}
+      {funding && (
         <div className="match-actions">
-          {funded ? <button type="button" disabled={ready} onClick={onReady}>{ready ? 'Ready' : 'Ready after deposit'}</button>
-            : <button type="button" disabled={busy} onClick={deposit}>{busy ? 'Confirming on Arc…' : `Deposit ${formatUnits(stake, USDC_DECIMALS)} test USDC`}</button>}
+          {funded ? (fundingMessage && !ready
+            ? <button type="button" disabled={!online} onClick={onReady}>Check deposits again</button>
+            : <p role="status">Stake confirmed. {opponentConnected ? 'The match starts when both stakes are confirmed.' : 'Waiting for your opponent to reconnect.'}</p>)
+            : <button type="button" disabled={busy || !online} onClick={deposit}>{busy ? 'Confirming on Arc…' : `Deposit ${formatUnits(stake, USDC_DECIMALS)} test USDC & play`}</button>}
         </div>
       )}
-      {prize?.stage === 'funding' && prize.depositDeadline && (
+      {funding && prize.depositDeadline && (
         <p>Deposit deadline {new Date(prize.depositDeadline * 1000).toLocaleTimeString()} local time.</p>
       )}
       {prize?.stage === 'settling' && <p role="status">Verifying testnet settlement and publishing the replay…</p>}

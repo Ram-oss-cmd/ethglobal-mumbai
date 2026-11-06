@@ -39,3 +39,4 @@
 - [x] Built a four-wallet entry with provider marks, explicit MetaMask sign-in, and sign-out. Edge verified a single column at 390 px, wallet feedback, session restore, and renewed sign-in after clearing site data. Live Arc reads confirmed the selected addresses with 0, 20, and 40 test USDC.
 - [x] Widened the rendered maze, enlarged the dog sprite, and kept the practice clock on real time. Edge verified the dog assets and life icons, banking three points, and a complete 90-second run.
 - [x] Required an active Wallet Rush sign-in before requesting wallet signatures or transactions. All nine wallet tests passed, including a signed-out browser whose MetaMask permission remained active.
+- [x] Streamlined staked entry and started play after both deposits cleared. Two Edge sessions verified the Arc switch, matched offers, automatic readiness, and free-room readiness. The 905.5 px practice maze fit at 1280×900. All 53 app tests, lint, and build passed.

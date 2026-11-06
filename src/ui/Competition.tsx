@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MATCH_SOCKET_PATH, type ClientMessage, type MatchRecord, type MatchResult, type RunView,
   type Seat, type ServerMessage,
@@ -105,9 +105,10 @@ export default function Competition({ matchId, leave, prize, initialStakeUnits }
     }
   }, [matchId, prizeToken, prizeWallet, initialStakeUnits])
 
-  function send(message: ClientMessage) {
+  const send = useCallback((message: ClientMessage) => {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(message))
-  }
+  }, [])
+  const sendReady = useCallback(() => send({ type: 'ready' }), [send])
 
   const seat = join?.seat ?? 0
   const other: Seat = seat === 0 ? 1 : 0
@@ -124,12 +125,13 @@ export default function Competition({ matchId, leave, prize, initialStakeUnits }
     : snapshot?.phase === 'paused' ? 'Match paused · Waiting for reconnection'
     : running ? (contending ? (canSteer ? 'Match live' : 'Match live · Respawning') : 'Run finished · Spectating')
     : !opponent?.connected ? 'Waiting for opponent'
+    : prize && snapshot?.prize?.stage === 'funding' ? undefined
     : own?.ready ? 'Waiting for opponent to ready up' : 'Ready when you are'
 
   useEffect(() => {
     if (!canSteer) return
     const handleKey = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLInputElement) return
+      if (event.target instanceof Element && event.target.closest('input, select, textarea')) return
       const direction = steeringKey(event)
       if (!direction) return
       event.preventDefault()
@@ -164,7 +166,7 @@ export default function Competition({ matchId, leave, prize, initialStakeUnits }
         {status && <p role="status">{status}</p>}
         {error && <p role="alert">{error}</p>}
         {!prize && connection === 'online' && snapshot?.phase === 'lobby' && !own?.ready && (
-          <button className="play" type="button" onClick={() => send({ type: 'ready' })}>Ready</button>
+          <button className="play" type="button" onClick={sendReady}>Ready</button>
         )}
       </div>
       {result && replay === null && (
@@ -176,9 +178,10 @@ export default function Competition({ matchId, leave, prize, initialStakeUnits }
         </section>
       )}
       {prize && join && <PrizeFunding member={prize} prize={snapshot?.prize} seat={seat} ready={Boolean(own?.ready)}
+        lobby={snapshot?.phase === 'lobby'} online={connection === 'online'}
         matchId={matchId} result={result} opponentConnected={Boolean(opponent?.connected)}
         onOffer={stakeUnits => send({ type: 'stake-offer', stakeUnits })}
-        onConfirm={revision => send({ type: 'confirm-stake', revision })} onReady={() => send({ type: 'ready' })} />}
+        onConfirm={revision => send({ type: 'confirm-stake', revision })} onReady={sendReady} />}
       {record && replay !== null ? (
         <Replay key={replay} record={record} seat={replay} leave={() => setReplay(null)} />
       ) : (

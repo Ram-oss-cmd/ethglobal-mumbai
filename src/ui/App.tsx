@@ -111,14 +111,14 @@ export default function App() {
   return (
     <main className={`cabinet${multiplayer ? ' cabinet-live' : ''}`}>
       <h1 className="sr-only">Wallet Rush</h1>
-      {account ? <nav className="mode-switch" aria-label="Game mode">
-        <button type="button" aria-pressed={mode === 'practice'} onClick={() => changeMode('practice')}>Single player</button>
-        <button type="button" aria-pressed={multiplayer} onClick={() => changeMode('multiplayer')}>Multiplayer</button>
-        <button type="button" aria-pressed={mode === 'history'} onClick={() => changeMode('history')}>Match history</button>
-      </nav> : <a href="/">Back to Wallet Rush</a>}
-      {account && (
+      {account ? <header className="arcade-header">
+        <nav className="mode-switch" aria-label="Game mode">
+          <button type="button" aria-pressed={mode === 'practice'} onClick={() => changeMode('practice')}>Single player</button>
+          <button type="button" aria-pressed={multiplayer} onClick={() => changeMode('multiplayer')}>Multiplayer</button>
+          <button type="button" aria-pressed={mode === 'history'} onClick={() => changeMode('history')}>Match history</button>
+        </nav>
         <div className="match-actions wallet-picker" aria-label="Wallet settings">
-          <label htmlFor="player-wallet">Player wallet</label>
+          <label htmlFor="player-wallet"><span className="sr-only">Player </span>Wallet</label>
           <select id="player-wallet" value={account.toLowerCase()} onChange={event => {
             const selected = event.target.value
             sessionStorage.setItem(WALLET_ACCOUNT_KEY, selected)
@@ -126,15 +126,15 @@ export default function App() {
           }}>
             {accounts.map(address => <option key={address} value={address.toLowerCase()}>{address.slice(0, 8)}…{address.slice(-4)}</option>)}
           </select>
-          <button type="button" disabled={connecting} onClick={() => void connect(true)}>Manage accounts</button>
+          <button type="button" aria-label="Manage accounts" disabled={connecting} onClick={() => void connect(true)}>Accounts</button>
           <button type="button" onClick={() => {
             history.replaceState(null, '', '/')
             setMode('practice')
             signOut()
           }}>Sign out</button>
-          {walletError && <p role="alert">{walletError}</p>}
         </div>
-      )}
+        {walletError && <p className="wallet-picker-error" role="alert">{walletError}</p>}
+      </header> : <a href="/">Back to Wallet Rush</a>}
       <Suspense fallback={<p role="status">Loading…</p>}>
         {mode === 'practice' && <Practice />}
         {multiplayer && account && <Multiplayer key={account} account={account} />}

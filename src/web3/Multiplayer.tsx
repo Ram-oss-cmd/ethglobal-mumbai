@@ -96,8 +96,13 @@ export default function Multiplayer({ account }: { account: Address }) {
     }).finally(() => setBusy(false))
   }
 
-  function verify() {
+  function continueStakedMatch() {
     perform(async () => {
+      if (!onArc) {
+        await switchToArc()
+        setChain(ARC_TESTNET.id)
+        if (eligible) return
+      }
       const wallet = await checkedWallet(account)
       const challenge = await prizeRequest<{ message: string; nonce: string }>('wallet-challenge', { wallet: account })
       const signature = await wallet.signMessage({ account, message: challenge.message })
@@ -141,7 +146,7 @@ export default function Multiplayer({ account }: { account: Address }) {
   return (
     <>
       <section className="lobby prize-panel" aria-label="Multiplayer lobby">
-        <h2>Multiplayer</h2>
+        <h2>{stakedRoom && !member ? 'Join a staked match' : 'Multiplayer'}</h2>
         {!room && (
           <>
             <form className="match-actions" onSubmit={event => {
@@ -155,7 +160,7 @@ export default function Multiplayer({ account }: { account: Address }) {
               <input id="room-stake" inputMode="decimal" maxLength={10} value={offer} onChange={event => setOffer(event.target.value)} />
               <button type="submit" disabled={!canCreate}>Create match</button>
             </form>
-            <p>Enter 0 to play free.{config?.enabled && (variable ? ' Staked matches accept 1–100 test USDC.' : ' The current escrow also supports 10 test USDC each.')}</p>
+            <p className="stake-hint">0 for free play{config?.enabled && (variable ? ' · 1–100 test USDC for a staked match' : ' · 10 test USDC for a staked match')}</p>
             <form className="match-actions" onSubmit={event => {
               event.preventDefault()
               if (MATCH_CODE.test(joinCode)) enter({ id: joinCode })
@@ -167,22 +172,23 @@ export default function Multiplayer({ account }: { account: Address }) {
             </form>
           </>
         )}
-        {stakedRoom && !member && <p>{onArc ? 'Verify your eligibility to join this staked match.' : 'Switch to Arc Testnet to join this staked match.'}</p>}
+        {stakedRoom && !member && <p>Continue with MetaMask to use Arc Testnet and verify your entry.</p>}
         {stakedRoom && config?.worldEnvironment === 'staging' && <p>World ID staging · simulator proofs are for testing.</p>}
         {config && !config.enabled && <p>Staked matches await sponsor setup. A stake of 0 is available.</p>}
         <div className="match-actions">
-          {stakedRoom && !onArc && <button type="button" disabled={busy} onClick={switchNetwork}>Switch to Arc Testnet</button>}
-          {stakedRoom && onArc && config?.enabled && (
-            <button type="button" disabled={busy || Boolean(worldGate)} onClick={verify}>
-              {eligible ? 'Refresh eligibility session' : 'Verify eligibility'}
+          {stakedRoom && config?.enabled && (
+            <button type="button" disabled={busy || Boolean(worldGate)} onClick={continueStakedMatch}>
+              {member ? 'Refresh eligibility session' : 'Continue with MetaMask'}
             </button>
           )}
           {stakedRoom && !member && <button type="button" onClick={() => enter()}>Back to lobby</button>}
         </div>
-        <p className="wallet-address"><a href={new URL(`/address/${account}`, ARC_TESTNET.blockExplorers.default.url).href}
-          target="_blank" rel="noreferrer">{account}</a>
-          <br />Arc Testnet balance · {balance === undefined ? 'Loading…' : balance === null ? 'Unavailable' : `${balance} test USDC`}
-          <br />Wallet network · {onArc ? 'Arc Testnet' : `Network ${chain ?? 'unknown'}`}</p>
+        {!room && <div className="wallet-balance">
+          <p>Arc Testnet balance <strong>{balance === undefined ? 'Loading…' : balance === null ? 'Unavailable' : `${balance} test USDC`}</strong></p>
+          <a className="wallet-address" href={new URL(`/address/${account}`, ARC_TESTNET.blockExplorers.default.url).href}
+            target="_blank" rel="noreferrer">{account}</a>
+          {balance === '0' && <p>Expected funds here? Choose the funded address under Player wallet.</p>}
+        </div>}
         {stakedRoom && eligible && <p role="status">Wallet eligible for staked matches.</p>}
         {busy && <p role="status">Waiting for wallet or server confirmation…</p>}
         {error && <p role="alert">{error}</p>}
