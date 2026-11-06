@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { formatUnits, type Address } from 'viem'
 import { ARC_TESTNET } from '../arc/chain.ts'
 import { useArcBalance } from '../web3/useArcBalance'
@@ -113,7 +113,7 @@ export default function App() {
 
   const multiplayer = mode === 'multiplayer'
   return (
-    <main className={`cabinet${multiplayer ? ' cabinet-live' : ''}`}>
+    <main className={`cabinet${multiplayer ? ' cabinet-live' : ''}`} style={{ '--board-aspect': BOARD_ASPECT } as CSSProperties}>
       <h1 className="sr-only">Wallet Rush</h1>
       {account ? <header className="arcade-header">
         <nav className="mode-switch" aria-label="Game mode">

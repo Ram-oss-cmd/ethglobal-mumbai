@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createGame, DEATH_PAUSE_MS, type Direction, type GameState, loseLife, MAZE, stepGame, TICK_MS, TOTAL_DOTS } from './index'
+import { createGame, DEATH_PAUSE_MS, type Direction, type GameState, loseLife, MAZE, stepGame, TICK_MS, TOTAL_DOTS, VAULT } from './index'
 import { HOME_TILE, START_TILE, TUNNEL_ROW, VAULT_TILE, WIDTH } from './maze'
 import { createActor } from './movement'
 
@@ -12,11 +12,11 @@ function collectAndBank(state: GameState) {
   advance(state, 58, 'down')
   expect(state.carried).toBe(3)
   expect(state.banked).toBe(0)
-  expect(state.player.y).toBeCloseTo(16.48)
+  expect(state.player.y).toBeCloseTo(VAULT.y - .52)
   stepGame(state)
   expect(state.carried).toBe(0)
   expect(state.banked).toBe(3)
-  expect(state.player.y).toBeCloseTo(16.54)
+  expect(state.player.y).toBeCloseTo(VAULT.y - .46)
 }
 
 function unbankedIds(state: GameState) {
@@ -43,7 +43,7 @@ describe('collecting and banking', () => {
       for (const { x, y } of state.pellets) {
         expect(x).toBeGreaterThan(1)
         expect(x).toBeLessThan(WIDTH - 2)
-        expect(MAZE[y][x]).toBe('.')
+        expect(MAZE[y][x]).toBe('o')
         expect(state.dots.some(dot => dot.x === x && dot.y === y)).toBe(false)
       }
       expectConserved(state)
@@ -65,7 +65,7 @@ describe('collecting and banking', () => {
     const state = createGame(1)
     advance(state, 58, 'down')
     advance(state, 8, 'up')
-    expect(state.player.y).toBeCloseTo(16)
+    expect(state.player.y).toBeCloseTo(VAULT.y - 1)
     expect(state).toMatchObject({ carried: 3, banked: 0 })
     advance(state, 9, 'down')
     expect(state).toMatchObject({ carried: 0, banked: 3 })
@@ -76,7 +76,7 @@ describe('collecting and banking', () => {
     advance(state, 58, 'down')
     const bankedIds = state.carriedDots.map(dot => dot.id)
     stepGame(state)
-    advance(state, 59, 'up')
+    state.player = createActor(TUNNEL_ROW * WIDTH + 5)
     advance(state, 34, 'left')
     expect(state.carried).toBe(2)
     loseLife(state)
@@ -140,8 +140,8 @@ describe('collecting and banking', () => {
       advance(state, 58, 'down')
       const bankedIds = new Set(state.carriedDots.map(dot => dot.id))
       stepGame(state)
-      advance(state, 59, 'up')
       for (let life = 2; life >= 0; life--) {
+        state.player = createActor(TUNNEL_ROW * WIDTH + 5 + 4 * (2 - life))
         advance(state, 34, 'left')
         expect(state.carried).toBeGreaterThan(0)
         const lost = state.carriedDots.map(dot => dot.id)
@@ -198,13 +198,13 @@ describe('collecting and banking', () => {
 
   it('requires the last coin to cross into the vault and locks the full-clear tick', () => {
     const state = createGame(3)
-    state.dots = state.dots.filter(dot => dot.x === 11 && dot.y === 16)
+    state.dots = state.dots.filter(dot => dot.x === VAULT.x && dot.y === VAULT.y - 1)
     state.banked = TOTAL_DOTS - 1
     advance(state, 58, 'down')
     expect(state).toMatchObject({ status: 'playing', carried: 1, banked: TOTAL_DOTS - 1 })
     advance(state, 50, 'down')
     expect(state).toMatchObject({ status: 'full-clear', carried: 0, banked: TOTAL_DOTS, elapsedMs: 590 })
-    expect(state.player.y).toBe(16.5)
+    expect(state.player.y).toBe(VAULT.y - .5)
     expectConserved(state)
   })
 })

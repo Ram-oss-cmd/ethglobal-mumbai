@@ -1,6 +1,6 @@
 import { sha256, stringToHex } from 'viem'
 import type { GameState } from '../game/index.ts'
-import { ENGINE_VERSION, type MatchRecord, type MatchResult, type Outcome, type RunRecord, type Seat } from './protocol.ts'
+import { ENGINE_VERSION, LEGACY_ENGINE_VERSION, type EngineVersion, type MatchRecord, type MatchResult, type Outcome, type RunRecord, type Seat } from './protocol.ts'
 import { replayRun } from './run.ts'
 
 // Replay records are JSON. Compare their values independently of property order.
@@ -35,6 +35,7 @@ function reconstruct(
   streams: [RunRecord['inputs'], RunRecord['inputs']],
   ticks: [number, number],
   result: MatchResult,
+  engineVersion: EngineVersion,
 ): { record: MatchRecord; states: [GameState, GameState] } {
   if (typeof matchId !== 'string' || !matchId ||
       playerIds.some(id => typeof id !== 'string' || !id) || playerIds[0] === playerIds[1]) {
@@ -51,10 +52,10 @@ function reconstruct(
       if (game.lives !== previousLives) deaths.push({ tick, lives: game.lives })
       previousBanked = game.banked
       previousLives = game.lives
-    }, seat === 1)
+    }, seat === 1, engineVersion)
     const outcome: Outcome = result.kind === 'win' ? result.winner === seat ? 'win' : 'loss' : result.kind
     const body: Omit<RunRecord, 'digest'> = {
-      matchId, playerId: playerIds[seat], seed, alternateLayout: seat === 1, engineVersion: ENGINE_VERSION, ticks: ticks[seat],
+      matchId, playerId: playerIds[seat], seed, alternateLayout: seat === 1, engineVersion, ticks: ticks[seat],
       inputs: inputs.map(({ tick, direction }) => ({ tick, direction })),
       banking, deaths, finalBanked: state.banked, status: state.status, outcome,
     }
@@ -83,19 +84,20 @@ export function buildMatchRecord(
   ticks: [number, number],
   result: MatchResult,
 ) {
-  return reconstruct(matchId, playerIds, seed, streams, ticks, result).record
+  return reconstruct(matchId, playerIds, seed, streams, ticks, result, ENGINE_VERSION).record
 }
 
 /** Verify event logs, scores, timing, identities and digests by simulating both runs again. */
 export function verifyMatchRecord(record: MatchRecord) {
   if (!Array.isArray(record?.runs) || record.runs.length !== 2) throw new Error('Expected two replay runs')
   const [first, second] = record.runs
-  if (first?.engineVersion !== ENGINE_VERSION || second?.engineVersion !== ENGINE_VERSION) {
+  const version = first?.engineVersion
+  if ((version !== ENGINE_VERSION && version !== LEGACY_ENGINE_VERSION) || second?.engineVersion !== version) {
     throw new Error('Replay uses a different game engine version')
   }
   const replay = reconstruct(
     record.matchId, [first.playerId, second.playerId], first.seed,
-    [first.inputs, second.inputs], [first.ticks, second.ticks], record.result,
+    [first.inputs, second.inputs], [first.ticks, second.ticks], record.result, version,
   )
   if (!matchesRecord(replay.record, record)) throw new Error('Replay record differs from reconstructed record')
   return replay.states

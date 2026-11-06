@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createGame, DEATH_PAUSE_MS, type Direction, type GameState, GHOST_EAT_PAUSE_MS, GHOST_HOME, stepGame, TICK_MS, VAULT } from './index'
-import { START_TILE, VAULT_TILE, WIDTH } from './maze'
+import { point, START_TILE, TUNNEL_ROW, VAULT_TILE, WIDTH } from './maze'
 import { createActor, occupiedTile } from './movement'
 
 function advance(state: GameState, ticks: number, direction?: Direction) {
@@ -34,7 +34,7 @@ describe('ghost behavior', () => {
   it('freezes both sides at contact, then respawns only the wallet', () => {
     const state = createGame(1)
     advance(state, 59, 'down')
-    advance(state, 59, 'up')
+    state.player = createActor(TUNNEL_ROW * WIDTH + 5)
     advance(state, 34, 'left')
     expect(state).toMatchObject({ carried: 2, banked: 3 })
 
@@ -58,7 +58,7 @@ describe('ghost behavior', () => {
     stepGame(state, 'down')
     expect(ghosts[0]).not.toEqual(actorsAtDeath[1])
     expect(state.waveMs).toBe(waveBeforeDeath + 2 * TICK_MS)
-    expect(state.player.y).toBeCloseTo(13.06)
+    expect(state.player.y).toBeCloseTo(point(START_TILE).y + .06)
     expect(state.lives).toBe(2)
   })
 
@@ -88,6 +88,8 @@ describe('ghost behavior', () => {
     expect(state.ghostPauseUntilMs).toBe(0)
     stepGame(state)
     expect(tracer).not.toEqual(actorsAtCatch[1])
+    state.player = createActor(VAULT_TILE)
+    state.requestedDirection = null
 
     for (let tick = 0; tick < 400 && tracer.mode !== 'recovering'; tick++) stepGame(state)
     expect(tracer).toMatchObject({ ...GHOST_HOME, mode: 'recovering' })
@@ -100,10 +102,10 @@ describe('ghost behavior', () => {
     expect(state.ghosts.every(ghost => ghost.mode !== 'frightened')).toBe(true)
   })
 
-  it('replays the same seed and timed inputs through power-up, collisions and dot respawn', () => {
+  it('preserves the legacy replay through power-up, collisions and dot respawn', () => {
     const moves = new Map<number, Direction>([[0, 'down'], [10, 'left']])
-    const first = createGame(7)
-    const second = createGame(7)
+    const first = createGame(7, false, true)
+    const second = createGame(7, false, true)
     let sawPower = false
     let sawLoss = false
     for (let tick = 0; tick < 2_500; tick++) {

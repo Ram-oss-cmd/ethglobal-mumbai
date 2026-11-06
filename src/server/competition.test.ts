@@ -7,6 +7,7 @@ import WebSocket from 'ws'
 import { MATCH_SOCKET_PATH, type ServerMessage } from '../competition/protocol'
 import { verifyMatchRecord } from '../competition/replay'
 import { RUN_MS, TICK_MS } from '../game'
+import { point, START_TILE } from '../game/maze'
 import { attachCompetition } from './competition'
 import type { PrizeCompetition } from './prizeCompetition'
 
@@ -124,15 +125,15 @@ describe('authoritative two-player competition over WebSocket', () => {
     const { a, b } = await startPair()
     a.send({ type: 'input', direction: 'down' })
     await a.barrier()
-    await advance(18_400)
+    await advance(20_200)
     const lastHit = await b.receive('state', packet => packet.seats[1]?.run?.lives === 0)
     expect(lastHit.seats[1]?.run?.status).toBe('playing')
     await b.disconnect()
     const disconnected = await a.receive('state', packet => packet.seats[1]?.connected === false)
     expect(disconnected.phase).toBe('running')
 
-    await advance(1600)
-    const early = await a.receive('state', packet => packet.tick === 2000)
+    await advance(1_800)
+    const early = await a.receive('state', packet => packet.tick === 2200)
     expect(early.phase).toBe('running')
     expect(early.seats[0]?.run).toMatchObject({ banked: 3, lives: 3, status: 'playing' })
     expect(early.seats[1]?.run).toMatchObject({ banked: 0, lives: 0, status: 'out-of-lives' })
@@ -142,9 +143,9 @@ describe('authoritative two-player competition over WebSocket', () => {
     expect(spectator.identity.seat).toBe(1)
     const resumed = await spectator.receive('state', packet => packet.phase === 'running')
     expect(resumed.seats[1]?.run).toEqual(early.seats[1]?.run)
-    expect(resumed.seats[0]?.run?.elapsedMs).toBe(21_000)
+    expect(resumed.seats[0]?.run?.elapsedMs).toBe(23_000)
 
-    await advance(RUN_MS - 21_000)
+    await advance(RUN_MS - 23_000)
     const { record } = await spectator.receive('record')
     expect(record.result).toEqual({ kind: 'win', winner: 0, reason: 'banked' })
     expect(record.runs[0]).toMatchObject({ finalBanked: 3, status: 'timeout', outcome: 'win' })
@@ -403,12 +404,13 @@ describe('authoritative two-player competition over WebSocket', () => {
     for (const direction of ['up', 'right', 'down']) a.send({ type: 'input', direction })
     await a.barrier()
     const overdue = await resumed.receive('state', packet => packet.tick === 100)
-    expect(overdue.seats[0]?.run?.player.y).toBe(13)
+    const startY = point(START_TILE).y
+    expect(overdue.seats[0]?.run?.player.y).toBe(startY)
     await advance(100)
     const live = await resumed.receive('state', packet => packet.tick === 110)
     expect(live.seats[0]?.run).toMatchObject({ elapsedMs: 1100, banked: 0 })
-    expect(live.seats[0]?.run?.player.y).toBeCloseTo(13.6)
-    expect(live.seats[1]?.run?.player.y).toBe(13)
+    expect(live.seats[0]?.run?.player.y).toBeCloseTo(startY + .6)
+    expect(live.seats[1]?.run?.player.y).toBe(startY)
 
     const closed = once(a.socket, 'close')
     for (let i = 0; i < 30; i++) a.send({ type: 'input', direction: 'left' })

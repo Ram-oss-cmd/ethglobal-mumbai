@@ -28,7 +28,7 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 }
 
 .cabinet {
-  width: min(calc(100% - 24px), 1160px, max(380px, calc((100svh - 152px) * 1380 / 1026)));
+  width: min(calc(100% - 24px), 1240px, max(380px, calc((100svh - 152px) * var(--board-aspect))));
   margin: 0 auto;
   padding: 16px 0 12px;
 }
@@ -301,7 +301,8 @@ a { color: #a8afff; }
 .scoreboard .score-carried { color: var(--yellow); }
 .scoreboard .score-urgent { color: #ff6262; }
 .maze-shell { position: relative; }
-.maze { width: 100%; position: relative; }
+.maze { width: 100%; position: relative; container-type: inline-size; }
+.maze-walls { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
 .star-video-overlay { position: absolute; width: 4%; aspect-ratio: 1; object-fit: contain; transform: translate(-50%, -50%); pointer-events: none; mix-blend-mode: screen; z-index: 5; }
 .maze:focus { outline: none; }
 
@@ -314,6 +315,7 @@ a { color: #a8afff; }
 .run-screen {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: grid;
   align-content: center;
   justify-items: center;

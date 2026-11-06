@@ -1,7 +1,9 @@
 import type { Direction, GameState } from '../game/index.ts'
 import type { DeferredPayout } from '../arc/chain.ts'
 
-export const ENGINE_VERSION = 'wallet-rush-5'
+export const ENGINE_VERSION = 'wallet-rush-6'
+export const LEGACY_ENGINE_VERSION = 'wallet-rush-5'
+export type EngineVersion = typeof ENGINE_VERSION | typeof LEGACY_ENGINE_VERSION
 export const MATCH_SOCKET_PATH = '/ws'
 export type Seat = 0 | 1
 export type RunView = Pick<GameState,
@@ -26,7 +28,7 @@ export interface RunRecord {
   playerId: string
   seed: number
   alternateLayout: boolean
-  engineVersion: typeof ENGINE_VERSION
+  engineVersion: EngineVersion
   ticks: number
   inputs: { tick: number; direction: Direction }[]
   banking: { tick: number; banked: number }[]

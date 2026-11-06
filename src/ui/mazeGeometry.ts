@@ -1,14 +1,12 @@
-import { HOME_TILE, MAZE, point, WIDTH as COLUMNS } from '../game/maze.ts'
+import { CURRENT_MAZE, LEGACY_MAZE, type Maze } from '../game/maze.ts'
+import type { Actor } from '../game/movement.ts'
 
 export const TILE_WIDTH = 60
 export const TILE_HEIGHT = 54
-export const BOARD_WIDTH = COLUMNS * TILE_WIDTH
-export const BOARD_HEIGHT = MAZE.length * TILE_HEIGHT
-export const BOARD_ASPECT = BOARD_WIDTH / BOARD_HEIGHT
-export const WALL_STROKE = 4
-export const PLAYER_SIZE = 106
+export const WALL_STROKE = 3
+export const PLAYER_SIZE = 92
 
-const LANE_WIDTH = 100
+const LANE_WIDTH = 92
 const insetX = (LANE_WIDTH - TILE_WIDTH) / 2
 const insetY = (LANE_WIDTH - TILE_HEIGHT) / 2
 const reach = Math.max(insetX, insetY) + 1
@@ -16,15 +14,9 @@ const reach = Math.max(insetX, insetY) + 1
 type Point = readonly [number, number]
 type Vertex = { point: Point; links: Set<Vertex> }
 
-const door = point(HOME_TILE - COLUMNS)
-const gateY = door.y * TILE_HEIGHT + insetY
-export const gate: readonly [Point, Point] = [
-  [door.x * TILE_WIDTH - insetX, gateY],
-  [(door.x + 1) * TILE_WIDTH + insetX, gateY],
-]
-
 /** Trace the collision grid into continuous wall paths with a shared stroke and lane width. */
-function traceWalls() {
+function traceWalls(maze: Maze) {
+  const { rows: MAZE, width: COLUMNS } = maze
   const vertices = new Map<string, Vertex>()
   function vertex(point: Point) {
     const key = point.join(',')
@@ -44,7 +36,7 @@ function traceWalls() {
   function wall(x: number, y: number) {
     // Continue wall edges to the sides of the canvas at the wrap tunnel.
     const cell = MAZE[y]?.[Math.max(0, Math.min(x, COLUMNS - 1))] ?? '#'
-    return cell === '#' || cell === 'G'
+    return cell === '#' || (maze === LEGACY_MAZE && cell === 'G')
   }
   for (let y = 0; y <= MAZE.length; y++) {
     for (let x = 0; x <= COLUMNS; x++) {
@@ -94,4 +86,34 @@ function traceWalls() {
   return paths
 }
 
-export const wallPaths = traceWalls()
+function geometry(maze: Maze) {
+  const width = maze.width * TILE_WIDTH
+  const height = maze.rows.length * TILE_HEIGHT
+  const door = maze.point(maze.door)
+  const gateY = door.y * TILE_HEIGHT + insetY
+  const gate: readonly [Point, Point] = [
+    [door.x * TILE_WIDTH - insetX, gateY],
+    [(door.x + 1) * TILE_WIDTH + insetX, gateY],
+  ]
+  return { width, height, aspect: width / height, gate, wallPaths: traceWalls(maze), vault: maze.vault }
+}
+
+export const board = geometry(CURRENT_MAZE)
+export const legacyBoard = geometry(LEGACY_MAZE)
+export const BOARD_ASPECT = board.aspect
+
+export function interpolateActor(from: Actor | undefined, to: Actor, ratio: number, columns: number): Actor {
+  if (!from || ratio === 1) return to
+  let dx = to.x - from.x
+  const dy = to.y - from.y
+  if (Math.abs(dx) > columns / 2) dx -= Math.sign(dx) * columns
+  const distance = Math.abs(dx) + Math.abs(dy)
+  if (distance > .65 || (dx && dy && !to.direction)) return to
+  // When a snapshot straddles a turn, follow the incoming leg before the outgoing leg.
+  const horizontalExit = to.direction === 'left' || to.direction === 'right'
+  const travel = ratio * distance
+  const advance = (delta: number, after: number) => Math.sign(delta) * Math.min(Math.abs(delta), Math.max(0, travel - after))
+  const x = from.x + advance(dx, horizontalExit ? Math.abs(dy) : 0)
+  const y = from.y + advance(dy, horizontalExit ? 0 : Math.abs(dx))
+  return { ...to, x: ((x + columns + .5) % columns) - .5, y }
+}

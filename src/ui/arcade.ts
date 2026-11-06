@@ -1,11 +1,11 @@
 import Phaser from 'phaser'
 import {
-  createGame, MAZE, RUN_MS, stepGame, TICK_MS, VAULT,
+  createGame, RUN_MS, stepGame, TICK_MS,
   type Direction, type GameState,
 } from '../game'
 import type { RunView } from '../competition/protocol'
 import {
-  BOARD_WIDTH as WIDTH, BOARD_HEIGHT as HEIGHT, gate, PLAYER_SIZE, TILE_HEIGHT, TILE_WIDTH, wallPaths, WALL_STROKE,
+  board, interpolateActor, legacyBoard, PLAYER_SIZE, TILE_HEIGHT, TILE_WIDTH, WALL_STROKE,
 } from './mazeGeometry'
 
 import tracer from './assets/tracer.svg'
@@ -53,23 +53,33 @@ export type Hud = {
   powerSeconds: number
 }
 
-function drawMaze(scene: Phaser.Scene) {
-  const texture = scene.textures.createCanvas('walls', WIDTH, HEIGHT)!
-  const ctx = texture.context
-  ctx.beginPath()
-  for (const path of wallPaths) {
-    ctx.moveTo(...path[0])
-    for (const point of path.slice(1)) ctx.lineTo(...point)
-    if (path[0] === path.at(-1)) ctx.closePath()
+function addWalls(parent: HTMLDivElement, layout: typeof board) {
+  const ns = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(ns, 'svg')
+  svg.setAttribute('aria-hidden', 'true')
+  svg.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`)
+  svg.classList.add('maze-walls')
+  // Cap the screen-space stroke on small boards before opposing wall edges can merge.
+  svg.style.strokeWidth = `min(${WALL_STROKE}px, .26cqw)`
+  function path(data: string, color: string) {
+    const line = document.createElementNS(ns, 'path')
+    line.setAttribute('d', data)
+    line.setAttribute('fill', 'none')
+    line.setAttribute('stroke', color)
+    line.setAttribute('vector-effect', 'non-scaling-stroke')
+    svg.append(line)
   }
-  ctx.lineJoin = 'miter'
-  ctx.lineWidth = WALL_STROKE
-  ctx.strokeStyle = '#4657ff'
-  ctx.stroke()
-  scene.add.image(0, 0, texture).setOrigin(0)
+  path(layout.wallPaths.map(points => {
+    const closed = points[0] === points.at(-1)
+    const tail = points.slice(1, closed ? -1 : undefined)
+    return `M${points[0].join(' ')} L${tail.map(point => point.join(' ')).join(' ')}${closed ? ' Z' : ''}`
+  }).join(' '), '#4657ff')
+  path(`M${layout.gate[0].join(' ')} L${layout.gate[1].join(' ')}`, '#ffa8ce')
+  parent.append(svg)
+  return svg
+}
 
-  // Keep the full gate visible when a ghost crosses it.
-  scene.add.graphics().setDepth(1).lineStyle(WALL_STROKE, 0xffa8ce).lineBetween(...gate[0], ...gate[1])
+function drawVault(scene: Phaser.Scene, VAULT: typeof board.vault) {
   const g = scene.add.graphics()
   const vaultX = VAULT.x * TILE_WIDTH
   const threshold = VAULT.y * TILE_HEIGHT
@@ -129,7 +139,7 @@ function drawPickups(dots: Phaser.GameObjects.Graphics, pellets: Phaser.GameObje
   }
 }
 
-function actor(scene: Phaser.Scene, texture: string, size = GHOST_SIZE, mirror = true) {
+function actor(scene: Phaser.Scene, texture: string, WIDTH: number, size = GHOST_SIZE, mirror = true) {
   const image = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   const wrap = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
   return (position: GameState['player'], nextTexture: string, alpha = 1) => {
@@ -158,21 +168,11 @@ export function hudFor(state: RunView, ready = false): Hud {
   }
 }
 
-type Actor = RunView['player']
-
-function interpolate(from: Actor | undefined, to: Actor, ratio: number): Actor {
-  if (!from || ratio === 1) return to
-  const columns = MAZE[0].length
-  let dx = to.x - from.x
-  const dy = to.y - from.y
-  if (Math.abs(dx) > columns / 2) dx -= Math.sign(dx) * columns
-  // Spawn teleports and long gaps must never animate across walls.
-  if (Math.abs(dx) + Math.abs(dy) > 0.65) return to
-  const x = ((from.x + ratio * dx + columns + 0.5) % columns) - 0.5
-  return { ...to, x, y: from.y + ratio * dy }
-}
-
-export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFrame?: (now: number) => void) {
+export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFrame?: (now: number) => void, legacy = false) {
+  const layout = legacy ? legacyBoard : board
+  const { width: WIDTH, height: HEIGHT, vault: VAULT } = layout
+  const columns = WIDTH / TILE_WIDTH
+  const walls = addWalls(parent, layout)
   const reducedEffects = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   let state: RunView | null = null
   let previous: RunView | null = null
@@ -215,13 +215,13 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
         for (const key of ['normal_left', 'normal_right', 'hit_left', 'hit_right']) {
           this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR)
         }
-        drawMaze(this)
+        drawVault(this, VAULT)
         const dots = this.add.graphics()
         const pellets = this.add.graphics()
         const bankFlash = this.add.rectangle((VAULT.x + 0.5) * TILE_WIDTH, VAULT.y * TILE_HEIGHT, TILE_WIDTH - 2, WALL_STROKE, 0xeaffd9)
           .setVisible(false)
-        const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id))
-        const player = actor(this, 'normal_left', PLAYER_SIZE, false)
+        const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id, WIDTH))
+        const player = actor(this, 'normal_left', WIDTH, PLAYER_SIZE, false)
 
         draw = (now) => {
           if (!state) return
@@ -240,14 +240,14 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
             let texture: keyof typeof sprites = ghost.id
             if (ghost.mode === 'returning' || ghost.mode === 'recovering') texture = 'returning'
             if (ghost.mode === 'frightened' && !flashing) texture = 'frightened'
-            ghosts[i](interpolate(previous?.ghosts[i], ghost, ratio), texture, Number(spritesVisible))
+            ghosts[i](interpolateActor(previous?.ghosts[i], ghost, ratio, columns), texture, Number(spritesVisible))
           })
 
           if (state.player.direction === 'left') playerFacing = 'left'
           else if (state.player.direction === 'right') playerFacing = 'right'
 
           const isEaten = state.respawnAtMs > elapsedMs || state.status === 'out-of-lives'
-          const pos = interpolate(previous?.player, state.player, ratio)
+          const pos = interpolateActor(previous?.player, state.player, ratio, columns)
           const protectedPlayer = state.invulnerableUntilMs > elapsedMs
           const dimPlayer = protectedPlayer && (reducedEffects || Math.floor(elapsedMs / 150) % 2 === 1)
           player(pos, `${isEaten ? 'hit' : 'normal'}_${playerFacing}`, spritesVisible ? (dimPlayer ? 0.6 : 1) : 0)
@@ -289,6 +289,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
       lastBanked = next.banked
     },
     destroy: () => {
+      walls.remove()
       domStar.remove()
       game.destroy(true)
     },
@@ -332,7 +333,7 @@ export function createArcade(parent: HTMLDivElement, onHud: (hud: Hud) => void) 
   return {
     start() {
       if (startedAt !== undefined) state = newRun()
-      input = 'left'
+      input = undefined
       startedAt = performance.now()
       board.present(state)
       syncHud()

@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { DIRECTIONS, MAZE, nextTile, point, VECTORS } from '../game/maze.ts'
 import { createActor, moveActor } from '../game/movement.ts'
-import { BOARD_WIDTH, gate, PLAYER_SIZE, TILE_HEIGHT, TILE_WIDTH, wallPaths, WALL_STROKE } from './mazeGeometry'
+import { board, interpolateActor, PLAYER_SIZE, TILE_HEIGHT, TILE_WIDTH } from './mazeGeometry'
 
+const { width: BOARD_WIDTH, gate, wallPaths } = board
 const walls = wallPaths.flatMap(path => path.slice(1).map((end, i) => [path[i], end] as const))
 const barriers = [...walls, gate]
 const publicTiles = [...MAZE.join('')].flatMap((cell, tile) => '#GD'.includes(cell) ? [] : [tile])
 
 describe('maze geometry', () => {
+  it('interpolates both legs of a corner without cutting through the wall', () => {
+    const from = { ...createActor(0), x: 4, y: 4.25 }
+    const to = { ...from, x: 4.25, y: 4, direction: 'right' } as const
+    expect(interpolateActor(from, to, .25, 33)).toMatchObject({ x: 4, y: 4.125 })
+    expect(interpolateActor(from, to, .75, 33)).toMatchObject({ x: 4.125, y: 4 })
+  })
+
   it('traces unique orthogonal wall segments with only the wrap tunnel ends open', () => {
     const lines = new Map<string, [number, number][]>()
     for (const [start, end] of walls) {
@@ -25,7 +33,7 @@ describe('maze geometry', () => {
       }
     }
     const openPaths = wallPaths.filter(path => path[0] !== path.at(-1))
-    expect(openPaths).toHaveLength(2)
+    expect(openPaths).toHaveLength(4)
     for (const path of openPaths) {
       for (const [x] of [path[0], path.at(-1)!]) {
         expect(x <= 0 || x >= BOARD_WIDTH).toBe(true)
@@ -41,8 +49,8 @@ describe('maze geometry', () => {
 
   it('clears the dog art on every legal player lane and marks each blocked step', () => {
     // The four PNG poses extend at most 39% horizontally and 44% vertically from center.
-    const halfX = Math.ceil(PLAYER_SIZE * .39) + WALL_STROKE / 2
-    const halfY = Math.ceil(PLAYER_SIZE * .44) + WALL_STROKE / 2
+    const halfX = Math.ceil(PLAYER_SIZE * .39) + 3
+    const halfY = Math.ceil(PLAYER_SIZE * .44) + 3
     for (const tile of publicTiles) {
       const p = point(tile)
       const x = (p.x + .5) * TILE_WIDTH

@@ -1,4 +1,4 @@
-import { type Direction, nextTile, OPPOSITE, point, VECTORS, WIDTH } from './maze.ts'
+import { CURRENT_MAZE, type Direction, type Maze, OPPOSITE, VECTORS } from './maze.ts'
 
 const TILE_UNITS = 1_000
 const HALF_TILE = TILE_UNITS / 2
@@ -12,8 +12,8 @@ export interface Actor {
   progress: number
 }
 
-export function createActor(tile: number): Actor {
-  return { ...point(tile), direction: null, tile, destination: null, progress: 0 }
+export function createActor(tile: number, maze = CURRENT_MAZE): Actor {
+  return { ...maze.point(tile), direction: null, tile, destination: null, progress: 0 }
 }
 
 export function reverseActor(actor: Actor) {
@@ -34,12 +34,13 @@ export function moveActor(
     onCross?: (from: number, to: number) => boolean | void
     onArrival?: (tile: number) => void
   },
+  maze: Maze = CURRENT_MAZE,
 ) {
   while (budget > 0) {
     if (actor.destination === null) {
       const direction = choose(actor.tile)
       if (direction === null) return
-      const destination = nextTile(actor.tile, direction, allowVault)
+      const destination = maze.nextTile(actor.tile, direction, allowVault)
       if (destination === null) return
       actor.direction = direction
       actor.destination = destination
@@ -49,12 +50,12 @@ export function moveActor(
     const advance = Math.min(budget, boundary - actor.progress)
     budget -= advance
     actor.progress += advance
-    const { x, y } = point(actor.tile)
+    const { x, y } = maze.point(actor.tile)
     const [dx, dy] = VECTORS[actor.direction!]
     actor.x = x + dx * actor.progress / TILE_UNITS
     actor.y = y + dy * actor.progress / TILE_UNITS
-    if (actor.x < -0.5) actor.x += WIDTH
-    if (actor.x >= WIDTH - 0.5) actor.x -= WIDTH
+    if (actor.x < -0.5) actor.x += maze.width
+    if (actor.x >= maze.width - 0.5) actor.x -= maze.width
 
     if (actor.progress === HALF_TILE && hooks?.onCross?.(actor.tile, actor.destination) === false) return
 

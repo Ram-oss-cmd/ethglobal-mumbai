@@ -1,4 +1,4 @@
-export const MAZE = [
+const legacyRows = [
   '#######################',
   '#.....................#',
   '#.###.#######.#######.#',
@@ -20,6 +20,32 @@ export const MAZE = [
   '#######################',
 ] as const
 
+const rows = [
+  '#################################',
+  '#.oo.........................oo.#',
+  '#.###.####.#####.#####.####.###.#',
+  '#.###.####.#####.#####.####.###.#',
+  '#.....##...#####.#####...##.....#',
+  '#.######.#.#####.#####.#.######.#',
+  '#.######.#.#####.#####.#.######.#',
+  ' ............................... ',
+  '#.####.######.##.##.######.####.#',
+  '#.####.######.##.##.######.####.#',
+  '#.####........##D##........####.#',
+  '#.#####.##.###GGGGG###.##.#####.#',
+  '#.#####.##.###########.##.#####.#',
+  ' ............................... ',
+  '#.#.#.###.##.###.###.##.###.#.#.#',
+  '#.#.#.###.##.###.###.##.###.#.#.#',
+  '#.........##.........##.........#',
+  '#.#.####.###.###P###.###.####.#.#',
+  '#.#.####.###.###.###.###.####.#.#',
+  '#.oo.........................oo.#',
+  '################.################',
+  '################V################',
+  '#################################',
+] as const
+
 export type Direction = 'up' | 'left' | 'down' | 'right'
 
 export const DIRECTIONS: readonly Direction[] = ['up', 'left', 'down', 'right']
@@ -35,39 +61,52 @@ export const OPPOSITE: Record<Direction, Direction> = {
   down: 'up',
   right: 'left',
 }
-export const WIDTH = MAZE[0].length
-export const TUNNEL_ROW = 9
-const tiles = MAZE.join('')
+function createMaze(rows: readonly string[]) {
+  const width = rows[0].length
+  const tunnels = rows.flatMap((row, y) => row.startsWith(' ') && row.endsWith(' ') ? [y] : [])
+  const tiles = rows.join('')
+  const start = tiles.indexOf('P')
+  const door = tiles.indexOf('D')
+  const home = door + width
+  const vaultTile = tiles.indexOf('V')
+  const collectibleTiles = [...tiles].flatMap((cell, tile) => '.o'.includes(cell) ? [tile] : [])
 
-export function point(tile: number) {
-  return { x: tile % WIDTH, y: Math.floor(tile / WIDTH) }
+  function point(tile: number) {
+    return { x: tile % width, y: Math.floor(tile / width) }
+  }
+
+  function inGhostHouse(tile: number) {
+    return tiles[tile] === 'G' || tile === door
+  }
+
+  function nextTile(tile: number, direction: Direction, allowVault = false) {
+    const { x, y } = point(tile)
+    const [dx, dy] = VECTORS[direction]
+    const nextY = y + dy
+    let nextX = x + dx
+    if (tunnels.includes(nextY)) nextX = (nextX + width) % width
+    const cell = rows[nextY]?.[nextX]
+    if (!cell || cell === '#' || (!allowVault && cell === 'V')) return null
+    const destination = nextY * width + nextX
+    if (inGhostHouse(tile) !== inGhostHouse(destination) &&
+        (allowVault || Math.min(tile, destination) !== door - width ||
+         Math.max(tile, destination) !== door)) return null
+    return destination
+  }
+
+  return {
+    rows, width, tunnels, tiles, start, door, home, vaultTile, vault: point(vaultTile),
+    collectibleTiles, totalDots: collectibleTiles.length - PELLET_COUNT, point, inGhostHouse, nextTile,
+  }
 }
 
-export const START_TILE = tiles.indexOf('P')
-const DOOR_TILE = tiles.indexOf('D')
-export const HOME_TILE = DOOR_TILE + WIDTH
-export const VAULT_TILE = tiles.indexOf('V')
-export const VAULT = point(VAULT_TILE)
-export const GHOST_HOME = point(HOME_TILE)
-export const COLLECTIBLE_TILES = [...tiles].flatMap((cell, tile) => cell === '.' ? [tile] : [])
 export const PELLET_COUNT = 4
-export const TOTAL_DOTS = COLLECTIBLE_TILES.length - PELLET_COUNT
-
-export function inGhostHouse(tile: number) {
-  return tiles[tile] === 'G' || tile === DOOR_TILE
-}
-
-export function nextTile(tile: number, direction: Direction, allowVault = false) {
-  const { x, y } = point(tile)
-  const [dx, dy] = VECTORS[direction]
-  const nextY = y + dy
-  let nextX = x + dx
-  if (nextY === TUNNEL_ROW) nextX = (nextX + WIDTH) % WIDTH
-  const cell = MAZE[nextY]?.[nextX]
-  if (!cell || cell === '#' || (!allowVault && cell === 'V')) return null
-  const destination = nextY * WIDTH + nextX
-  if (inGhostHouse(tile) !== inGhostHouse(destination) &&
-      (allowVault || Math.min(tile, destination) !== DOOR_TILE - WIDTH ||
-       Math.max(tile, destination) !== DOOR_TILE)) return null
-  return destination
-}
+export const CURRENT_MAZE = createMaze(rows)
+export const LEGACY_MAZE = createMaze(legacyRows)
+export type Maze = ReturnType<typeof createMaze>
+export const {
+  rows: MAZE, width: WIDTH, start: START_TILE, home: HOME_TILE, vaultTile: VAULT_TILE, vault: VAULT,
+  collectibleTiles: COLLECTIBLE_TILES, totalDots: TOTAL_DOTS, point, inGhostHouse, nextTile,
+} = CURRENT_MAZE
+export const GHOST_HOME = point(HOME_TILE)
+export const TUNNEL_ROW = CURRENT_MAZE.tunnels[0]
