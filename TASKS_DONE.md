@@ -37,3 +37,4 @@
 - [x] Simplified wallet entry and moved Arc recovery into a collapsed lobby section. Edge verified four rounded wallet buttons and the network-specific recovery controls. All 51 app tests, lint, and build passed.
 - [x] Added an Arc Testnet RPC fallback for wallet reads. The rate-limit regression test and all 52 app tests passed. Live reads confirmed the Arc Testnet chain, player balances, and the deployment receipt.
 - [x] Built a four-wallet entry with provider marks, explicit MetaMask sign-in, and sign-out. Edge verified a single column at 390 px, wallet feedback, session restore, and renewed sign-in after clearing site data. Live Arc reads confirmed the selected addresses with 0, 20, and 40 test USDC.
+- [x] Widened the rendered maze, enlarged the dog sprite, and kept the practice clock on real time. Edge verified the dog assets and life icons, banking three points, and a complete 90-second run.

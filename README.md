@@ -54,7 +54,7 @@ git diff --check
 
 `src/game/` owns the rules. `createGame(seed)` creates a fresh run, and `stepGame(state, direction?)` advances it by one 10 ms tick. Replays need the seed, layout variant, matching engine version, and direction changes indexed by tick. Use commit `0685a24` for previously exported `wallet-rush-2` records, `856e559` for `wallet-rush-3`, or `87ef940` for `wallet-rush-4`. The same inputs reproduce the scores, ghost states, and respawn schedule. Terminal score and time stay frozen while any scheduled dots finish returning.
 
-Phaser reads the simulation to draw the maze and handles steering. React displays the HUD and run controls. The original placeholder sprites are SVGs in `src/ui/assets/`. Replace the asset files or change the texture imports in `src/ui/arcade.ts`, preserving each ghost's texture key.
+Phaser reads the simulation to draw the maze and handles steering. React displays the HUD and run controls. The dog and ghost sprites are in `src/ui/assets/`. To swap artwork, update the texture imports in `src/ui/arcade.ts` and the life icon in `src/ui/CabinetHud.tsx`.
 
 ## Hackathon provenance
 

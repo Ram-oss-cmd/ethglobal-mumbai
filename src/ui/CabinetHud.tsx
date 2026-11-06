@@ -1,7 +1,6 @@
 import { RUN_MS, type Direction } from '../game'
 import type { Hud } from './arcade'
-import wallet from './assets/wallet.svg'
-import walletOutline from './assets/wallet-outline.svg'
+import normalLeft from './assets/normal_looking left-Photoroom.png'
 
 export const initialHud: Hud = {
   status: 'ready', carried: 0, banked: 0, lives: 3, seconds: RUN_MS / 1000, powerSeconds: 0,
@@ -23,7 +22,17 @@ export function Scoreboard({ carried, banked, seconds, lives }: Hud) {
         <div><dt>Time</dt><dd className={seconds <= 10 ? 'score-urgent' : undefined}>{clock}</dd></div>
       </dl>
       <div className="life-meter" role="img" aria-label={`${lives} lives remaining`}>
-        {[1, 2, 3].map(life => <img key={life} src={life <= lives ? wallet : walletOutline} alt="" />)}
+        {[1, 2, 3].map(life => (
+          <img
+            key={life}
+            src={normalLeft}
+            style={{
+              opacity: life <= lives ? 1 : 0.25,
+              filter: life <= lives ? 'none' : 'grayscale(1)',
+            }}
+            alt=""
+          />
+        ))}
       </div>
     </div>
   )
