@@ -23,6 +23,25 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+it('reads the native balance from the backup Arc RPC when the primary is rate limited', async () => {
+  const address = '0x1000000000000000000000000000000000000000'
+  const fetch = vi.fn(async (url: string, options: RequestInit) => {
+    if (url === ARC_TESTNET.rpcUrls.default.http[0] + '/') {
+      return Response.json({ error: 'rate limited' }, { status: 429 })
+    }
+    const { id, method, params } = JSON.parse(String(options.body))
+    expect(method).toBe('eth_getBalance')
+    expect(params[0]).toBe(address)
+    return Response.json({ jsonrpc: '2.0', id, result: '0x20f5b1eaad8d80000' })
+  })
+  vi.stubGlobal('fetch', fetch)
+  await expect(arc.getBalance({ address })).resolves.toBe(38_000_000_000_000_000_000n)
+  expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+    'https://rpc.testnet.arc.io/',
+    'https://rpc.drpc.testnet.arc.io/',
+  ])
+})
+
 it('uses the chosen authorized address for wallet actions even when MetaMask lists it second', async () => {
   const first = privateKeyToAccount(generatePrivateKey()).address
   const chosen = privateKeyToAccount(generatePrivateKey()).address

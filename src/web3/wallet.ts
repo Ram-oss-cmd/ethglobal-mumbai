@@ -1,10 +1,16 @@
 import {
-  createPublicClient, createWalletClient, custom, erc20Abi, getAddress, http,
+  createPublicClient, createWalletClient, custom, erc20Abi, fallback, getAddress, http,
   isAddressEqual, numberToHex, parseEventLogs, type Address, type EIP1193Provider, type Hex,
 } from 'viem'
 import { ARC_TESTNET, ARC_USDC, ENTRY_AMOUNT, ESCROW_ABI, type EscrowVersion, MATCHED_STAKE_ABI, readDeferredPayouts, validStakeUnits } from '../arc/chain.ts'
 
-export const arc = createPublicClient({ chain: ARC_TESTNET, transport: http(undefined, { timeout: 10_000 }) })
+export const arc = createPublicClient({
+  chain: ARC_TESTNET,
+  transport: fallback([
+    http(undefined, { timeout: 5_000 }),
+    http('https://rpc.drpc.testnet.arc.io', { timeout: 5_000 }),
+  ], { retryCount: 0 }),
+})
 export const WALLET_ACCOUNT_KEY = 'wallet-rush:wallet-account'
 
 export function selectedWalletAccount(addresses: readonly Address[], preferred: string | null | undefined) {
