@@ -52,7 +52,7 @@ git diff --check
 
 ## Engine and artwork
 
-`src/game/` owns the rules. `createGame(seed)` creates a fresh run, and `stepGame(state, direction?)` advances it by one 10 ms tick. Replays need the seed, layout variant, matching engine version, and direction changes indexed by tick. The app verifies and renders versions 5 through 8 with their original rules, including dot returns in versions 5 through 7. Use commit `0685a24` for previously exported `wallet-rush-2` records, `856e559` for `wallet-rush-3`, or `87ef940` for `wallet-rush-4`.
+`src/game/` owns the rules. `createGame(seed)` creates a fresh run, and `stepGame(state, direction?)` advances it by one 10 ms tick. Replays need the seed, layout variant, matching engine version, and direction changes indexed by tick. The app verifies and renders versions 5 through 9 with their original rules, including dot returns in versions 5 through 7 and faster ghost returns in version 9. Use commit `0685a24` for previously exported `wallet-rush-2` records, `856e559` for `wallet-rush-3`, or `87ef940` for `wallet-rush-4`.
 
 Phaser renders the actors and pickups from the simulation. The current maze traces the supplied reference into SVG outlines with one stroke width per board. Its collision grid follows the reference lanes and adds a vault below the bottom edge. React displays the HUD and run controls. The dog and ghost sprites are in `src/ui/assets/`. To swap artwork, update the texture imports in `src/ui/arcade.ts` and the life icon in `src/ui/CabinetHud.tsx`.
 

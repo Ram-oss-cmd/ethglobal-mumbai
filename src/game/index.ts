@@ -25,6 +25,7 @@ export type RunStatus = 'playing' | 'timeout' | 'out-of-lives' | 'full-clear'
 export interface GameState extends CoinState {
   layout: MazeId
   restoreLostDots: boolean
+  fastGhostReturn: boolean
   elapsedMs: number
   lives: number
   status: RunStatus
@@ -40,12 +41,15 @@ export interface GameState extends CoinState {
   waveMs: number
 }
 
-export function createGame(seed: number, alternateLayout = false, layout: MazeId = 'classic', restoreLostDots = false): GameState {
+export function createGame(
+  seed: number, alternateLayout = false, layout: MazeId = 'classic', restoreLostDots = false, fastGhostReturn = true,
+): GameState {
   const maze = MAZES[layout]
   return {
     ...createCoins(seed, alternateLayout, maze),
     layout,
     restoreLostDots,
+    fastGhostReturn,
     elapsedMs: 0,
     lives: 3,
     status: 'playing',

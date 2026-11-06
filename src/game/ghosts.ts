@@ -15,6 +15,7 @@ export interface Ghost extends Actor {
 }
 
 interface GhostContext {
+  fastGhostReturn: boolean
   elapsedMs: number
   frightenedUntilMs: number
   waveMs: number
@@ -157,7 +158,8 @@ function ghostRules(maze: Maze) {
         ghost.mode = wave
       }
 
-      const speed = ghost.mode === 'returning' ? 86 : ghost.mode === 'frightened' ? 35 : roster[ghost.id].speed
+      const returnSpeed = state.fastGhostReturn ? 200 : 86
+      const speed = ghost.mode === 'returning' ? returnSpeed : ghost.mode === 'frightened' ? 35 : roster[ghost.id].speed
       moveActor(ghost, speed, tile => {
         if (ghost.mode === 'returning' && tile === HOME_TILE) recover(ghost, state)
         if (ghost.mode === 'recovering') return null

@@ -18,6 +18,7 @@ import blueRight from './assets/blue elon right.jpg'
 import yellowLeft from './assets/yellow elon left.jpg'
 import yellowRight from './assets/yellow elon right.jpg'
 import sad from './assets/elon sad.png'
+import returning from './assets/returning.svg'
 import normalLeft from './assets/normal_looking left-Photoroom.png'
 import normalRight from './assets/normal_looking right-Photoroom.png'
 import hitLeft from './assets/hit_looking left-Photoroom.png'
@@ -41,6 +42,7 @@ type Facing = 'left' | 'right'
 
 const sprites = {
   sad,
+  returning,
   normal_left: normalLeft,
   normal_right: normalRight,
   hit_left: hitLeft,
@@ -170,10 +172,10 @@ function prepareGhostPhotos(textures: Phaser.Textures.TextureManager) {
 }
 
 function actor(scene: Phaser.Scene, texture: string, WIDTH: number, TILE_HEIGHT: number, baseSize = GHOST_SIZE) {
-  const size = baseSize * 2
-  const image = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
-  const wrap = scene.add.image(0, 0, texture).setDisplaySize(size, size).setAlpha(0)
+  const image = scene.add.image(0, 0, texture).setAlpha(0)
+  const wrap = scene.add.image(0, 0, texture).setAlpha(0)
   return (position: GameState['player'], nextTexture: string, alpha = 1) => {
+    const size = nextTexture === 'returning' ? baseSize : baseSize * 2
     const x = Math.round((position.x + 0.5) * TILE_WIDTH)
     const y = Math.round((position.y + 0.5) * TILE_HEIGHT)
     image.setPosition(x, y).setTexture(nextTexture).setDisplaySize(size, size).setAlpha(alpha)
@@ -257,6 +259,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           .setVisible(false)
         const ghosts = Object.values(ghostColors).map(color => actor(this, `${color}_left`, WIDTH, TILE_HEIGHT))
         const player = actor(this, 'normal_left', WIDTH, TILE_HEIGHT, playerSize)
+        const sadPortrait = this.add.image(0, 0, 'sad').setDisplaySize(GHOST_SIZE, GHOST_SIZE).setVisible(false)
 
         draw = (now) => {
           if (!state) return
@@ -269,13 +272,16 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           const duration = previous ? state.elapsedMs - previous.elapsedMs : 0
           const ratio = duration > 0 ? Math.min(1, (now - receivedAt) / Math.min(duration, 80)) : 1
           const { elapsedMs, frightenedUntilMs, eatenGhostId, ghostPauseUntilMs, status } = state
+          const showingSad = Boolean(eatenGhostId && elapsedMs < ghostPauseUntilMs && status === 'playing')
           state.ghosts.forEach((ghost, i) => {
             if (ghost.direction === 'left' || ghost.direction === 'right') ghostFacing.set(ghost.id, ghost.direction)
             const facing = ghostFacing.get(ghost.id) ?? 'left'
-            const color = elapsedMs < frightenedUntilMs && ghost.mode !== 'returning' ? 'blue' : ghostColors[ghost.id]
-            const eaten = ghost.id === eatenGhostId && elapsedMs < ghostPauseUntilMs && status === 'playing'
-            const texture = eaten ? 'sad' : `${color}_${facing}`
-            ghosts[i](interpolateActor(previous?.ghosts[i], ghost, ratio, columns), texture, Number(spritesVisible))
+            const isReturning = ghost.mode === 'returning'
+            const color = elapsedMs < frightenedUntilMs ? 'blue' : ghostColors[ghost.id]
+            const texture = isReturning ? 'returning' : `${color}_${facing}`
+            const eaten = showingSad && ghost.id === eatenGhostId
+            const position = interpolateActor(previous?.ghosts[i], ghost, ratio, columns, isReturning ? 1.01 : .65)
+            ghosts[i](position, texture, Number(spritesVisible && !eaten))
           })
 
           if (state.player.direction === 'left') playerFacing = 'left'
@@ -286,6 +292,13 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
           const protectedPlayer = state.invulnerableUntilMs > elapsedMs
           const dimPlayer = protectedPlayer && (reducedEffects || Math.floor(elapsedMs / 150) % 2 === 1)
           player(pos, `${isEaten ? 'hit' : 'normal'}_${playerFacing}`, spritesVisible ? (dimPlayer ? 0.6 : 1) : 0)
+          sadPortrait.setVisible(spritesVisible && showingSad)
+          if (sadPortrait.visible) {
+            const half = GHOST_SIZE / 2
+            const x = Phaser.Math.Clamp((pos.x + .5) * TILE_WIDTH, half, WIDTH - half)
+            const y = Math.max(half, (pos.y + .5) * TILE_HEIGHT - playerSize - half - 4)
+            sadPortrait.setPosition(x, y)
+          }
 
           if (!reducedEffects && isEaten && spritesVisible) {
             const x = Phaser.Math.Clamp((pos.x + 0.5) * TILE_WIDTH, starRadius, WIDTH - starRadius)

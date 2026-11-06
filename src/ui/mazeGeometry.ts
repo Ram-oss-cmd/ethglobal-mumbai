@@ -133,13 +133,13 @@ export const board = referenceBoard()
 export const boards = { classic: board, symmetric: geometry(MAZES.symmetric), legacy: geometry(LEGACY_MAZE) }
 export const BOARD_ASPECT = board.aspect
 
-export function interpolateActor(from: Actor | undefined, to: Actor, ratio: number, columns: number): Actor {
+export function interpolateActor(from: Actor | undefined, to: Actor, ratio: number, columns: number, maxDistance = .65): Actor {
   if (!from || ratio === 1) return to
   let dx = to.x - from.x
   const dy = to.y - from.y
   if (Math.abs(dx) > columns / 2) dx -= Math.sign(dx) * columns
   const distance = Math.abs(dx) + Math.abs(dy)
-  if (distance > .65 || (dx && dy && !to.direction)) return to
+  if (distance > maxDistance || (dx && dy && !to.direction)) return to
   // When a snapshot straddles a turn, follow the incoming leg before the outgoing leg.
   const horizontalExit = to.direction === 'left' || to.direction === 'right'
   const travel = ratio * distance

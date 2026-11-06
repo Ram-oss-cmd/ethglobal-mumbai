@@ -88,8 +88,12 @@ describe('ghost behavior', () => {
     expect(state.frightenedUntilMs - state.elapsedMs).toBe(7_000)
     expect(state.ghostPauseUntilMs).toBe(0)
     expect(state.eatenGhostId).toBeUndefined()
+    const archived = { ...structuredClone(state), fastGhostReturn: false }
+    const distance = (ghost: typeof tracer) => Math.abs(ghost.x - actorsAtCatch[1].x) + Math.abs(ghost.y - actorsAtCatch[1].y)
     stepGame(state)
-    expect(tracer).not.toEqual(actorsAtCatch[1])
+    stepGame(archived)
+    expect(distance(tracer)).toBeCloseTo(.2)
+    expect(distance(archived.ghosts[0])).toBeCloseTo(.086)
     state.player = createActor(VAULT_TILE)
     state.requestedDirection = null
 
@@ -106,8 +110,8 @@ describe('ghost behavior', () => {
 
   it('preserves the legacy replay through power-up, collisions and dot respawn', () => {
     const moves = new Map<number, Direction>([[0, 'down'], [10, 'left']])
-    const first = createGame(7, false, 'legacy', true)
-    const second = createGame(7, false, 'legacy', true)
+    const first = createGame(7, false, 'legacy', true, false)
+    const second = createGame(7, false, 'legacy', true, false)
     let sawPower = false
     let sawLoss = false
     for (let tick = 0; tick < 2_500; tick++) {

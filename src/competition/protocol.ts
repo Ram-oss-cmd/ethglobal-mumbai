@@ -1,14 +1,15 @@
 import type { Direction, GameState } from '../game/index.ts'
 import type { DeferredPayout } from '../arc/chain.ts'
 
-export const ENGINE_VERSION = 'wallet-rush-8'
+export const ENGINE_VERSION = 'wallet-rush-9'
 export const LEGACY_ENGINE_VERSION = 'wallet-rush-5'
 export const ENGINE_RULES = {
-  [ENGINE_VERSION]: { layout: 'classic', restoreLostDots: false },
-  'wallet-rush-7': { layout: 'classic', restoreLostDots: true },
-  'wallet-rush-6': { layout: 'symmetric', restoreLostDots: true },
-  [LEGACY_ENGINE_VERSION]: { layout: 'legacy', restoreLostDots: true },
-} as const satisfies Record<string, Pick<GameState, 'layout' | 'restoreLostDots'>>
+  [ENGINE_VERSION]: { layout: 'classic', restoreLostDots: false, fastGhostReturn: true },
+  'wallet-rush-8': { layout: 'classic', restoreLostDots: false, fastGhostReturn: false },
+  'wallet-rush-7': { layout: 'classic', restoreLostDots: true, fastGhostReturn: false },
+  'wallet-rush-6': { layout: 'symmetric', restoreLostDots: true, fastGhostReturn: false },
+  [LEGACY_ENGINE_VERSION]: { layout: 'legacy', restoreLostDots: true, fastGhostReturn: false },
+} as const satisfies Record<string, Pick<GameState, 'layout' | 'restoreLostDots' | 'fastGhostReturn'>>
 export type EngineVersion = keyof typeof ENGINE_RULES
 export const MATCH_SOCKET_PATH = '/ws'
 export type Seat = 0 | 1

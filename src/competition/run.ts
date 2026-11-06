@@ -20,8 +20,8 @@ export function replayRun(
     previous = input.tick
   }
 
-  const { layout, restoreLostDots } = ENGINE_RULES[version]
-  const state = createGame(seed, alternateLayout, layout, restoreLostDots)
+  const { layout, restoreLostDots, fastGhostReturn } = ENGINE_RULES[version]
+  const state = createGame(seed, alternateLayout, layout, restoreLostDots, fastGhostReturn)
   let index = 0
   onTick?.(state, 0)
   for (let tick = 1; tick <= ticks; tick++) {
