@@ -68,6 +68,8 @@ button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; }
 .wallet-entry .match-actions { justify-content: center; }
 .wallet-entry [role="alert"] { color: #ff6262; }
 .wallet-address { overflow-wrap: anywhere; }
+.wallet-picker { justify-content: center; margin-bottom: 14px; }
+.wallet-picker select { font: inherit; min-height: 34px; max-width: 100%; }
 .prize-panel details { margin-top: 16px; }
 .prize-panel summary { cursor: pointer; }
 .prize-panel form { margin-top: 8px; }

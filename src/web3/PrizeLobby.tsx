@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { erc20Abi, formatUnits, type Address, type Hex } from 'viem'
-import { ARC_TESTNET, ARC_USDC, arcTxUrl, matchKeyFor, USDC_DECIMALS } from '../arc/chain.ts'
+import { formatUnits, type Address, type Hex } from 'viem'
+import { ARC_TESTNET, arcTxUrl, matchKeyFor } from '../arc/chain.ts'
 import Competition from '../ui/Competition'
 import { WorldGate } from '../world/WorldGate'
 import type { WorldChallenge } from '../world/types.ts'
@@ -49,10 +49,8 @@ export default function PrizeLobby({ account }: { account: Address }) {
 
   useEffect(() => {
     const lifetime = new AbortController()
-    const refresh = () => void arc.readContract({
-      address: ARC_USDC, abi: erc20Abi, functionName: 'balanceOf', args: [account],
-    }).then(value => {
-      if (!lifetime.signal.aborted) setBalance({ wallet: account, value: formatUnits(value, USDC_DECIMALS) })
+    const refresh = () => void arc.getBalance({ address: account }).then(value => {
+      if (!lifetime.signal.aborted) setBalance({ wallet: account, value: formatUnits(value, ARC_TESTNET.nativeCurrency.decimals) })
     }).catch(() => {
       if (!lifetime.signal.aborted) setBalance(undefined)
     })
@@ -122,8 +120,9 @@ export default function PrizeLobby({ account }: { account: Address }) {
             </button>
           )}
         </div>
-        <p className="wallet-address">{account}<br />{onArc ? 'Arc Testnet' : `Network ${chain ?? 'unknown'}`}
-          {' · '}{balance?.wallet === account ? `${balance.value} test USDC` : 'Arc USDC balance unavailable'}</p>
+        <p className="wallet-address"><a href={new URL(`/address/${account}`, ARC_TESTNET.blockExplorers.default.url).href}>{account}</a>
+          <br />Arc Testnet balance · {balance?.wallet === account ? `${balance.value} test USDC` : 'Unavailable'}
+          <br />Wallet network · {onArc ? 'Arc Testnet' : `Network ${chain ?? 'unknown'}`}</p>
         {eligible && <p role="status">Wallet eligible for prize entry.</p>}
         {busy && <p role="status">Waiting for wallet or server confirmation…</p>}
         {error && <p role="alert">{error}</p>}

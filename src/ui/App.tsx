@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { Address } from 'viem'
-import { injectedWallet } from '../web3/wallet'
+import { injectedWallet, selectedWalletAccount, WALLET_ACCOUNT_KEY } from '../web3/wallet'
 import { BOARD_ASPECT, createArcade, steeringKey, type Hud } from './arcade'
 import { ArenaFooter, endings, initialHud, Scoreboard, TouchControls } from './CabinetHud'
 import Competition from './Competition'
@@ -13,7 +13,9 @@ type Mode = 'practice' | 'casual' | 'prize' | 'history'
 export default function App() {
   const replayId = /^\/replay\/([a-z0-9-]{3,32})\/?$/.exec(location.pathname)?.[1]
   const [wallet, setWallet] = useState<ReturnType<typeof injectedWallet>>()
-  const [account, setAccount] = useState<Address>()
+  const [accounts, setAccounts] = useState<Address[]>([])
+  const [preferred, setPreferred] = useState(() => sessionStorage.getItem(WALLET_ACCOUNT_KEY))
+  const account = selectedWalletAccount(accounts, preferred)
   const [connecting, setConnecting] = useState(false)
   const [walletError, setWalletError] = useState('')
   const [mode, setMode] = useState<Mode>(() => {
@@ -29,7 +31,7 @@ export default function App() {
     let initial = true
     const changed = (addresses: Address[]) => {
       initial = false
-      setAccount(addresses[0])
+      setAccounts(addresses)
     }
     const disconnected = () => changed([])
     active.provider.on('accountsChanged', changed)
@@ -44,15 +46,16 @@ export default function App() {
     }
   }, [wallet])
 
-  async function connect() {
+  async function connect(manageAccounts = false) {
     setConnecting(true)
     setWalletError('')
     try {
       const active = wallet ?? injectedWallet()
-      const [selected] = await active.client.requestAddresses()
-      if (!selected) throw new Error('Select an account in MetaMask to continue.')
+      if (manageAccounts) await active.provider.request({ method: 'wallet_requestPermissions', params: [{ eth_accounts: {} }] })
+      const addresses = await (manageAccounts ? active.client.getAddresses() : active.client.requestAddresses())
+      if (addresses.length === 0) throw new Error('Select an account in MetaMask to continue.')
       setWallet(active)
-      setAccount(selected)
+      setAccounts(addresses)
     } catch (error) {
       setWalletError(error instanceof Error ? error.message.split('\n')[0] : 'MetaMask connection failed.')
     } finally {
@@ -93,6 +96,20 @@ export default function App() {
         <button type="button" aria-pressed={multiplayer} onClick={() => { if (!multiplayer) changeMode('casual') }}>Multiplayer</button>
         <button type="button" aria-pressed={mode === 'history'} onClick={() => changeMode('history')}>Match history</button>
       </nav> : <a href="/">Back to Wallet Rush</a>}
+      {account && multiplayer && (
+        <div className="match-actions wallet-picker">
+          <label htmlFor="player-wallet">Player wallet</label>
+          <select id="player-wallet" value={account.toLowerCase()} onChange={event => {
+            const selected = event.target.value
+            sessionStorage.setItem(WALLET_ACCOUNT_KEY, selected)
+            setPreferred(selected)
+          }}>
+            {accounts.map(address => <option key={address} value={address.toLowerCase()}>{address.slice(0, 8)}…{address.slice(-4)}</option>)}
+          </select>
+          <button type="button" disabled={connecting} onClick={() => void connect(true)}>Manage MetaMask accounts</button>
+          {walletError && <p role="alert">{walletError}</p>}
+        </div>
+      )}
       {multiplayer && <nav className="mode-switch" aria-label="Multiplayer mode">
         <button type="button" aria-pressed={mode === 'casual'} onClick={() => changeMode('casual')}>Casual duel</button>
         <button type="button" aria-pressed={mode === 'prize'} onClick={() => changeMode('prize')}>Prize match</button>

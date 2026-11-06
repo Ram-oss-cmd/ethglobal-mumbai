@@ -5,6 +5,11 @@ import {
 import { ARC_TESTNET, ARC_USDC, ENTRY_AMOUNT, ESCROW_ABI, type EscrowVersion, MATCHED_STAKE_ABI, readDeferredPayouts, validStakeUnits } from '../arc/chain.ts'
 
 export const arc = createPublicClient({ chain: ARC_TESTNET, transport: http(undefined, { timeout: 10_000 }) })
+export const WALLET_ACCOUNT_KEY = 'wallet-rush:wallet-account'
+
+export function selectedWalletAccount(addresses: readonly Address[], preferred: string | null | undefined) {
+  return addresses.find(address => address.toLowerCase() === preferred) ?? addresses[0]
+}
 
 export function injectedWallet() {
   let provider: EIP1193Provider | undefined
@@ -37,7 +42,8 @@ export async function checkedWallet(account: Address) {
   const { client } = injectedWallet()
   const [chain, addresses] = await Promise.all([client.getChainId(), client.getAddresses()])
   if (chain !== ARC_TESTNET.id) throw new Error('Switch your wallet to Arc Testnet first.')
-  if (!addresses[0] || !isAddressEqual(addresses[0], account)) throw new Error('The connected wallet changed. Reconnect it.')
+  const selected = selectedWalletAccount(addresses, window.sessionStorage?.getItem(WALLET_ACCOUNT_KEY))
+  if (!selected || !isAddressEqual(selected, account)) throw new Error('The connected wallet changed. Reconnect it.')
   return client
 }
 

@@ -2,10 +2,12 @@ import { encodeAbiParameters, encodeEventTopics } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ARC_TESTNET, ENTRY_AMOUNT, ESCROW_ABI, matchKeyFor } from '../arc/chain.ts'
-import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, refundUSDC, switchToArc } from './wallet.ts'
+import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, refundUSDC, switchToArc, WALLET_ACCOUNT_KEY } from './wallet.ts'
 
-function stubWallet(request: (args: { method: string }) => Promise<unknown>) {
-  const browser = new EventTarget()
+function stubWallet(request: (args: { method: string }) => Promise<unknown>, preferred?: string) {
+  const browser = Object.assign(new EventTarget(), { sessionStorage: {
+    getItem: (key: string) => key === WALLET_ACCOUNT_KEY ? preferred : null,
+  } })
   announceWallet(browser, 'io.metamask', { request })
   vi.stubGlobal('window', browser)
 }
@@ -19,6 +21,17 @@ function announceWallet(browser: EventTarget, rdns: string, provider: { request:
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+})
+
+it('uses the chosen authorized address for wallet actions even when MetaMask lists it second', async () => {
+  const first = privateKeyToAccount(generatePrivateKey()).address
+  const chosen = privateKeyToAccount(generatePrivateKey()).address
+  let addresses = [first, chosen]
+  stubWallet(async ({ method }) => method === 'eth_accounts' ? addresses : '0x4cef52', chosen.toLowerCase())
+  await expect(checkedWallet(chosen)).resolves.toBeDefined()
+  await expect(checkedWallet(first)).rejects.toThrow('wallet changed')
+  addresses = [first]
+  await expect(checkedWallet(chosen)).rejects.toThrow('wallet changed')
 })
 
 it('uses the announced MetaMask provider when another wallet owns window.ethereum', async () => {
