@@ -1,5 +1,5 @@
 import type { Address, Hex } from 'viem'
-import type { MatchRecord } from '../competition/protocol.ts'
+import type { MatchRecord, PrizeState } from '../competition/protocol.ts'
 
 export interface PrizeCompetition {
   admit(token: string | undefined): Address | undefined
@@ -7,7 +7,7 @@ export interface PrizeCompetition {
     matchKey: Hex; transactionHash: Hex; depositDeadline: number; refundAfter: number
   }>
   canStart(matchKey: Hex, wallets: [Address, Address]): Promise<boolean>
-  complete(matchKey: Hex, record: MatchRecord, wallets: [Address, Address]): Promise<{
-    settlementTx?: Hex; historyKey?: string; archiveTx?: Hex; message?: string
-  }>
+  complete(matchKey: Hex, record: MatchRecord, wallets: [Address, Address]): Promise<
+    Pick<PrizeState, 'settlementTx' | 'deferredPayouts' | 'historyKey' | 'archiveTx' | 'message'>
+  >
 }

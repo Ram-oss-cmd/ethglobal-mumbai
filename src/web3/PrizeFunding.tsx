@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { isAddressEqual, type Hex } from 'viem'
-import { arcTxUrl, ESCROW_ABI } from '../arc/chain.ts'
+import { formatUnits, isAddressEqual, type Hex } from 'viem'
+import { arcTxUrl, ESCROW_ABI, USDC_DECIMALS } from '../arc/chain.ts'
 import type { PrizeState, Seat } from '../competition/protocol.ts'
 import type { PrizeMember } from './api'
 import { arc, depositUSDC } from './wallet'
@@ -57,6 +57,10 @@ export default function PrizeFunding({ member, prize, seat, ready, onReady, matc
       {prize?.openTx && <a href={arcTxUrl(prize.openTx)}>Arc escrow receipt</a>}
       {hash && <a href={arcTxUrl(hash)}>{funded ? 'Arc deposit receipt' : 'Submitted Arc transaction'}</a>}
       {prize?.settlementTx && <a href={arcTxUrl(prize.settlementTx)}>Arc settlement receipt</a>}
+      {prize?.deferredPayouts?.map(({ player, amount }) => (
+        <p key={player} role="status">{formatUnits(BigInt(amount), USDC_DECIMALS)} test USDC was deferred for
+          {' '}{isAddressEqual(player, member.address) ? 'your wallet. Check “Claim deferred test USDC” above.' : 'the other wallet.'}</p>
+      ))}
       {prize?.historyKey && <a href={`/replay/${matchId}`}>Public Arkiv replay</a>}
       {prize?.archiveTx && <a href={`https://rabdi.explorer.arkiv.network/tx/${prize.archiveTx}`}>Arkiv archive receipt</a>}
       {(error || prize?.message) && <p role="alert">{error || prize?.message}</p>}

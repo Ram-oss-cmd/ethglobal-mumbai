@@ -1,4 +1,5 @@
 import type { Direction, GameState } from '../game/index.ts'
+import type { DeferredPayout } from '../arc/chain.ts'
 
 export const ENGINE_VERSION = 'wallet-rush-4'
 export const MATCH_SOCKET_PATH = '/ws'
@@ -45,6 +46,7 @@ export interface PrizeState {
   matchKey?: `0x${string}`
   openTx?: `0x${string}`
   settlementTx?: `0x${string}`
+  deferredPayouts?: DeferredPayout[]
   depositDeadline?: number
   refundAfter?: number
   historyKey?: string

@@ -1,4 +1,4 @@
-import { defineChain, keccak256, parseAbi, stringToHex, type Hex } from 'viem'
+import { defineChain, isAddressEqual, keccak256, parseAbi, parseEventLogs, stringToHex, type Address, type Hex, type Log } from 'viem'
 
 export const ARC_TESTNET = defineChain({
   id: 5042002,
@@ -19,9 +19,24 @@ export const ESCROW_ABI = parseAbi([
   'function deposit(bytes32 matchId)',
   'function settle(bytes32 matchId, uint8 outcome, uint32 scoreA, uint32 scoreB, uint64 validUntil, bytes32 replayDigest, bytes signature)',
   'function refundExpired(bytes32 matchId)',
+  'function claim()',
+  'function claimable(address player) view returns (uint256)',
   'function getMatch(bytes32 matchId) view returns (address playerA, address playerB, uint64 depositDeadline, uint64 refundAfter, bool depositedA, bool depositedB, bool finalized)',
   'event Settled(bytes32 indexed matchId, uint8 outcome, bytes32 replayDigest)',
+  'event PayoutDeferred(bytes32 indexed matchId, address indexed player, uint256 amount)',
+  'event Claimed(address indexed player, uint256 amount)',
 ])
+
+export type DeferredPayout = { player: Address; amount: string }
+
+export function readDeferredPayouts(logs: Log[], escrow: Address, matchKey: Hex): DeferredPayout[] {
+  return parseEventLogs({ abi: ESCROW_ABI, eventName: 'PayoutDeferred',
+    logs: logs.filter(log => isAddressEqual(log.address, escrow)),
+  }).filter(event => event.args.matchId === matchKey).map(event => ({
+    player: event.args.player,
+    amount: event.args.amount.toString(), // Keep raw USDC units JSON-safe for WebSocket snapshots.
+  }))
+}
 
 export function arcTxUrl(hash: Hex) {
   return `${ARC_TESTNET.blockExplorers.default.url}/tx/${hash}`

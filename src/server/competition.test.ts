@@ -194,7 +194,9 @@ describe('authoritative two-player competition over WebSocket', () => {
         matchKey: key, transactionHash: key, depositDeadline: 0, refundAfter: 0,
       })),
       canStart: vi.fn(async () => funded),
-      complete: vi.fn(async () => ({})),
+      complete: vi.fn(async () => ({
+        settlementTx: key, deferredPayouts: [{ player: wallets[0], amount: '10000000' }],
+      })),
     }
     runtime.close()
     runtime = attachCompetition(server, { now: () => now, prize })
@@ -239,6 +241,8 @@ describe('authoritative two-player competition over WebSocket', () => {
     const { record } = await a.receive('record')
     expect(record.result.kind).toBe('canceled')
     expect(prize.complete).toHaveBeenCalledWith(key, record, wallets)
+    const settled = await a.receive('state', state => state.prize?.stage === 'settled')
+    expect(settled.prize?.deferredPayouts).toEqual([{ player: wallets[0], amount: '10000000' }])
   })
 
   it('pauses both clocks for a live disconnect, resumes the seat, and cancels after cumulative grace', async () => {

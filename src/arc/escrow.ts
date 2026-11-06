@@ -6,7 +6,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { RUN_MS } from '../game/index.ts'
 import type { MatchRecord } from '../competition/protocol.ts'
 import { verifyMatchRecord } from '../competition/replay.ts'
-import { ARC_TESTNET, ESCROW_ABI, matchKeyFor } from './chain.ts'
+import { ARC_TESTNET, ESCROW_ABI, matchKeyFor, readDeferredPayouts } from './chain.ts'
 
 const DEPOSIT_WINDOW = 600n
 const SETTLEMENT_WINDOW = 300n
@@ -146,7 +146,10 @@ export function createEscrow() {
         if (receipt.status !== 'success' || !events.some(event =>
           event.args.matchId === matchKey && event.args.outcome === outcome && event.args.replayDigest === replayDigest
         )) throw new Error('Arc receipt does not confirm the expected settlement')
-        return receipt.transactionHash
+        return {
+          transactionHash: receipt.transactionHash,
+          deferredPayouts: readDeferredPayouts(receipt.logs, address, matchKey),
+        }
       })
     },
   }

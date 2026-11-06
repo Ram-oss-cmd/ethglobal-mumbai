@@ -8,6 +8,8 @@
 
 ## 1. Start the escrow inside Arc Studio
 
+The current Wallet Rush escrow is already deployed and verified. For this demo, use the [deployment record](arc-deployment.md) and continue to section 2. The steps below reproduce the Studio workflow for a fresh deployment.
+
 Start here before hosting Wallet Rush. The link Arc judges need is the **shareable Arc Studio project URL**. A hosted game link, the GitHub repository, and the ArcScan receipt are separate links.
 
 1. Open [Arc Studio](https://studio.arc.io/). Click **Sign in** or **Sign up**, then use **Start on the web** to open the workspace if the landing page is still visible.
@@ -45,7 +47,7 @@ Fill in the local, ignored `.env`. Share only public wallet addresses, public li
 
 1. Create two dedicated player wallets in separate browser profiles. Create a separate referee test wallet. Copy their **public addresses**. Keep the player keys inside their wallets.
 2. On the [Circle faucet](https://faucet.circle.com/), select **USDC**, select **Arc Testnet** under **Network**, paste a public address under **Send to**, then click **Send 20 USDC**. Complete any CAPTCHA. Repeat for both players and the referee within the faucet's limits. Players need at least 10 test USDC each plus gas. The referee needs test USDC for gas. The Studio workspace also offers a **Testnet Faucet** for its preview wallet.
-3. Put the referee test wallet's signing key in `ARC_REFEREE_KEY` on the host. Its public address must match the Studio constructor argument. After deployment, set `ARC_ESCROW_ADDRESS` to the contract address and `ARC_STUDIO_PROJECT_URL` to the Studio share link. The app's **Switch to Arc Testnet** control adds the network if needed. The network uses RPC `https://rpc.testnet.arc.network` and [Arc Testnet Explorer](https://testnet.arcscan.app/). [Circle faucet](https://faucet.circle.com/) · [Arc Testnet chain details](https://docs-w3s-node-sdk.circle.com/variables/index.ARC_TESTNET.html)
+3. Put the referee test wallet's signing key in `ARC_REFEREE_KEY` on the host. Its public address must match the immutable referee in the deployment record. For the reviewed deployment set `ARC_ESCROW_ADDRESS=0xCd8BD94B8f6C79E82F0e63Fa3743bf70d5cc2623` and set `ARC_STUDIO_PROJECT_URL` to the Studio project URL. The app's **Switch to Arc Testnet** control adds the network if needed. The network uses [Arc Testnet Explorer](https://explorer.testnet.arc.io/). [Circle faucet](https://faucet.circle.com/) · [Arc Testnet chain details](https://docs-w3s-node-sdk.circle.com/variables/index.ARC_TESTNET.html)
 
 ### Arkiv Rabdi writer
 
@@ -62,6 +64,8 @@ Fill in the local, ignored `.env`. Share only public wallet addresses, public li
 5. In each profile click **Deposit 10 test USDC**. The wallet may show an allowance approval first and a deposit transaction second. Confirm both on Arc Testnet. Wait for **Arc deposit receipt**, then click **Ready after deposit** in both profiles. Play until the result is verified. For a quick bank, move down from spawn into the vault.
 6. Open **Arc settlement receipt** after the match. Confirm the transaction succeeded and paid the winner or returned the deposits for a draw or eligible cancellation. Open **Arkiv archive receipt**, then **Public Arkiv replay**. From a fresh browser session without a wallet, open **Match history**, select the same match, and scrub both players' replays.
 7. Record the Studio project URL, GitHub repository, verified contract and deployment receipt, two deposit receipts, settlement or refund receipt, Arkiv writer address and archive receipt, and replay URL. Show Studio, the funded match, and the public replay in the demo video. To exercise timeout recovery separately, use a fresh staging tournament scope and match. After the applicable deadline, open **Prize match → Recover test USDC from an expired match**, enter the prize match code and click **Request timeout refund**.
+
+If Arc finalizes a settlement or timeout while a USDC transfer is deferred, the app labels the deferral separately. Connect the recipient account and use **Claim deferred test USDC** when the token permits transfers. A settlement receipt alone does not prove that a deferred transfer reached the wallet.
 
 ## 4. Host the game only if a public game URL is needed
 
@@ -92,4 +96,4 @@ The server decides the winner after independently replaying both simulations. Th
 
 ## Evidence to fill after the demo
 
-The Studio project URL, Arc deployment and transactions, first live World verification and Arkiv write are pending the steps above. Keep only confirmed transaction IDs in the submission.
+The [Arc deployment record](arc-deployment.md) includes the confirmed contract and deployment transaction. Judge access to the Studio project URL, player deposits and settlement, first live World verification and an Arkiv write remain to be demonstrated.

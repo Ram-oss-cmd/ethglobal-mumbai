@@ -5,6 +5,7 @@ import Competition from '../ui/Competition'
 import { WorldGate } from '../world/WorldGate'
 import type { WorldChallenge } from '../world/types.ts'
 import { prizeRequest, type PrizeConfig, type PrizeMember } from './api'
+import DeferredClaim from './DeferredClaim'
 import { arc, checkedWallet, injectedWallet, refundUSDC, switchToArc } from './wallet'
 
 const STORAGE = 'wallet-rush:prize-session'
@@ -23,7 +24,7 @@ export default function PrizeLobby() {
   const [busy, setBusy] = useState(false)
   const [refundCode, setRefundCode] = useState('')
   const [refundHash, setRefundHash] = useState<Hex>()
-  const [refundConfirmed, setRefundConfirmed] = useState(false)
+  const [refundStatus, setRefundStatus] = useState('')
 
   async function syncWallet(request = false) {
     const { client } = injectedWallet()
@@ -136,6 +137,9 @@ export default function PrizeLobby() {
         {eligible && <p role="status">Wallet eligible for prize entry.</p>}
         {busy && <p role="status">Waiting for wallet or server confirmation…</p>}
         {error && <p role="alert">{error}</p>}
+        {account && onArc && config?.escrowAddress && (
+          <DeferredClaim key={`${account}:${config.escrowAddress}`} account={account} escrow={config.escrowAddress} />
+        )}
         {worldGate && <WorldGate challenge={worldGate.challenge}
           verify={async proof => { await prizeRequest('world-verify', { proof }, worldGate.session.token) }}
           onSuccess={() => save(worldGate.session)}
@@ -149,17 +153,19 @@ export default function PrizeLobby() {
             <form className="match-actions" onSubmit={event => {
               event.preventDefault()
               setRefundHash(undefined)
-              setRefundConfirmed(false)
+              setRefundStatus('')
               perform(async () => {
-                await refundUSDC(account, config.escrowAddress!, matchKeyFor(refundCode), setRefundHash)
-                setRefundConfirmed(true)
+                const refund = await refundUSDC(account, config.escrowAddress!, matchKeyFor(refundCode), setRefundHash)
+                setRefundHash(refund.transactionHash)
+                setRefundStatus(refund.deferredPayouts.length > 0
+                  ? 'Timeout processed with deferred payouts' : 'Timeout processed')
               })
             }}>
               <input aria-label="Expired prize match code" placeholder="prize-…" value={refundCode}
                 onChange={event => setRefundCode(event.target.value.trim().toLowerCase())} />
               <button disabled={busy || !/^prize-[a-z0-9-]{3,26}$/.test(refundCode)}>Request timeout refund</button>
             </form>
-            {refundHash && <p><a href={arcTxUrl(refundHash)}>{refundConfirmed ? 'Confirmed refund' : 'Submitted refund'}</a></p>}
+            {refundHash && <p><a href={arcTxUrl(refundHash)}>{refundStatus || 'Submitted timeout refund'}</a></p>}
           </details>
         )}
       </section>

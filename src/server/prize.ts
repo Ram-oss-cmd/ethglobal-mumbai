@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { isAddress, type Address, type Hex } from 'viem'
 import { createEscrow } from '../arc/escrow.ts'
+import type { DeferredPayout } from '../arc/chain.ts'
 import { createHistoryWriter } from '../history/writer.ts'
 import { createWorldEligibility } from '../world/eligibility.ts'
 import { allowedOrigin } from './competition.ts'
@@ -73,11 +74,14 @@ export function createPrize() {
     canStart: escrow.canStart,
     async complete(matchKey, record, wallets) {
       let settlementTx: Hex | undefined
+      let deferredPayouts: DeferredPayout[] | undefined
       let historyKey: string | undefined
       let archiveTx: Hex | undefined
       const errors: string[] = []
       try {
-        settlementTx = await escrow.settle(matchKey, record, wallets)
+        const settlement = await escrow.settle(matchKey, record, wallets)
+        settlementTx = settlement.transactionHash
+        deferredPayouts = settlement.deferredPayouts
       } catch {
         errors.push('Arc settlement was not confirmed. Check the escrow and use its timeout refund if still unsettled.')
       }
@@ -88,7 +92,7 @@ export function createPrize() {
       } catch {
         errors.push('Arkiv publication was not confirmed. Save the verified match record.')
       }
-      return { settlementTx, historyKey, archiveTx, message: errors.join(' ') || undefined }
+      return { settlementTx, deferredPayouts, historyKey, archiveTx, message: errors.join(' ') || undefined }
     },
   } : undefined
 

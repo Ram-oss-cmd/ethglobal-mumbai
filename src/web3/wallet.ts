@@ -1,8 +1,8 @@
 import {
   createPublicClient, createWalletClient, custom, erc20Abi, getAddress, http,
-  isAddressEqual, numberToHex, type Address, type EIP1193Provider, type Hex,
+  isAddressEqual, numberToHex, parseEventLogs, type Address, type EIP1193Provider, type Hex,
 } from 'viem'
-import { ARC_TESTNET, ARC_USDC, ENTRY_AMOUNT, ESCROW_ABI } from '../arc/chain.ts'
+import { ARC_TESTNET, ARC_USDC, ENTRY_AMOUNT, ESCROW_ABI, readDeferredPayouts } from '../arc/chain.ts'
 
 export const arc = createPublicClient({ chain: ARC_TESTNET, transport: http(undefined, { timeout: 10_000 }) })
 
@@ -64,6 +64,24 @@ export async function refundUSDC(account: Address, escrow: Address, matchKey: He
   })
   const hash = await client.writeContract(request)
   onHash(hash)
-  if ((await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })).status !== 'success') throw new Error('Refund reverted.')
-  return hash
+  const receipt = await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })
+  if (receipt.status !== 'success') throw new Error('Refund reverted.')
+  return { transactionHash: receipt.transactionHash, deferredPayouts: readDeferredPayouts(receipt.logs, escrow, matchKey) }
+}
+
+export async function claimUSDC(account: Address, escrow: Address, onHash: (hash: Hex) => void) {
+  if (await arc.getChainId() !== ARC_TESTNET.id) throw new Error('Unexpected Arc RPC chain.')
+  const client = await checkedWallet(account)
+  const { request } = await arc.simulateContract({ account, address: escrow, abi: ESCROW_ABI, functionName: 'claim' })
+  const hash = await client.writeContract(request)
+  onHash(hash)
+  const receipt = await arc.waitForTransactionReceipt({ hash, timeout: 90_000 })
+  const claims = parseEventLogs({ abi: ESCROW_ABI, eventName: 'Claimed',
+    logs: receipt.logs.filter(log => isAddressEqual(log.address, escrow)),
+  })
+  if (receipt.status !== 'success' ||
+      !claims.some(event => isAddressEqual(event.args.player, account) && event.args.amount > 0n)) {
+    throw new Error('Arc receipt did not confirm a claim for this wallet.')
+  }
+  return receipt.transactionHash
 }
