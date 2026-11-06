@@ -90,9 +90,10 @@ a { color: #a8afff; }
   content: '';
   position: absolute;
   inset-block: 0;
-  left: calc(50% - 0.5px);
-  width: 1px;
-  background: #5362ff;
+  left: 50%;
+  width: 4px;
+  transform: translateX(-50%);
+  background: #fff;
   pointer-events: none;
 }
 .match-board { min-width: 0; }
@@ -223,5 +224,5 @@ a { color: #a8afff; }
 
 @media (pointer: coarse), (max-width: 680px) {
   .dpad { display: grid; }
-  .duel { gap: 6px; }
+  .duel { gap: 10px; }
 }
