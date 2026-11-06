@@ -43,9 +43,14 @@ async function body(req: IncomingMessage) {
 }
 
 export function createPrize() {
-  const world = createWorldEligibility()
-  const escrow = createEscrow()
-  const history = createHistoryWriter()
+  function configured<T>(name: string, create: () => T) {
+    try { return create() } catch {
+      console.warn(`Wallet Rush: ${name} configuration is invalid. Prize entry is disabled.`)
+    }
+  }
+  const world = configured('World ID', createWorldEligibility)
+  const escrow = configured('Arc escrow', createEscrow)
+  const history = configured('Arkiv writer', createHistoryWriter)
   const auth = createWalletAuth()
   const expectedWriter = process.env.VITE_ARKIV_WRITER_ADDRESS
   const studio = process.env.ARC_STUDIO_PROJECT_URL

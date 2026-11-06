@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { createPrize, reservePrizeEntry } from './prize.ts'
 
 it('enforces one match reservation per wallet and scope across separate calls', () => {
@@ -20,6 +20,18 @@ it('enforces one match reservation per wallet and scope across separate calls', 
     expect(() => reservePrizeEntry(file, 'other-tournament', 'match-two', [c, a])).not.toThrow()
   } finally {
     rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+it('keeps the server available when a sponsor secret is misconfigured without printing its value', () => {
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.stubEnv('ARKIV_WRITER_KEY', 'invalid-secret')
+  try {
+    expect(createPrize().competition).toBeUndefined()
+    expect(warning).toHaveBeenCalledWith('Wallet Rush: Arkiv writer configuration is invalid. Prize entry is disabled.')
+  } finally {
+    vi.unstubAllEnvs()
+    warning.mockRestore()
   }
 })
 
