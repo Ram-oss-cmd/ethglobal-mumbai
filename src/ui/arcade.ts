@@ -31,14 +31,13 @@ const sprites = {
 
 const TILE_WIDTH = 60
 const TILE_HEIGHT = 54
-const PLAYER_SIZE = 106
-const GHOST_SIZE = 38
+const PLAYER_SIZE = 92
+const GHOST_SIZE = 54
+const WALL_STROKE = 4
 const WIDTH = MAZE[0].length * TILE_WIDTH
 const HEIGHT = MAZE.length * TILE_HEIGHT
 const BACKGROUND = 0x000000
 export const BOARD_ASPECT = WIDTH / HEIGHT
-
-
 const keys = new Map<string, Direction>([
   ['arrowup', 'up'], ['w', 'up'],
   ['arrowleft', 'left'], ['a', 'left'],
@@ -60,7 +59,8 @@ function drawMaze(scene: Phaser.Scene) {
   const ctx = texture.context
   const columns = MAZE[0].length
   const reach = 24
-  const inset = 22
+  const insetX = 14
+  const insetY = 17
   // Offset contours into blocked cells, leaving simulation tile centers unchanged.
   const wall = (x: number, y: number) => {
     const cell = MAZE[y]?.[Math.max(0, Math.min(x, columns - 1))] ?? '#'
@@ -75,10 +75,10 @@ function drawMaze(scene: Phaser.Scene) {
       const cells = [wall(x - 1, y - 1), wall(x, y - 1), wall(x, y), wall(x - 1, y)]
       const edges = cells.map((cell, i) => cell !== cells[(i + 1) % 4])
       const ports = [
-        [cells[0] ? -inset : inset, -reach],
-        [reach, cells[1] ? -inset : inset],
-        [cells[2] ? inset : -inset, reach],
-        [-reach, cells[3] ? inset : -inset],
+        [cells[0] ? -insetX : insetX, -reach],
+        [reach, cells[1] ? -insetY : insetY],
+        [cells[2] ? insetX : -insetX, reach],
+        [-reach, cells[3] ? insetY : -insetY],
       ]
       if (edges[1] && x < columns) {
         ctx.moveTo(left + reach, top + ports[1][1])
@@ -103,22 +103,25 @@ function drawMaze(scene: Phaser.Scene) {
     }
   }
   ctx.lineCap = 'square'
-  ctx.lineWidth = 5
-  ctx.strokeStyle = '#131d83'
-  ctx.stroke()
-  ctx.lineWidth = 2.5
-  ctx.strokeStyle = '#5362ff'
+  ctx.lineWidth = WALL_STROKE
+  ctx.strokeStyle = '#4657ff'
   ctx.stroke()
   scene.add.image(0, 0, texture).setOrigin(0)
 
-  const g = scene.add.graphics()
+  // Keep the full gate visible when a ghost crosses it.
+  const gate = scene.add.graphics().setDepth(1)
   MAZE.forEach((row, y) => {
     const door = row.indexOf('D')
-    if (door >= 0) g.fillStyle(0xffa8ce).fillRect(door * TILE_WIDTH + 4, y * TILE_HEIGHT - 1, TILE_WIDTH - 8, 5)
+    if (door >= 0) {
+      const lintel = y * TILE_HEIGHT + insetY
+      gate.lineStyle(WALL_STROKE, 0xffa8ce)
+        .lineBetween(door * TILE_WIDTH - insetX, lintel, (door + 1) * TILE_WIDTH + insetX, lintel)
+    }
   })
+  const g = scene.add.graphics()
   const vaultX = VAULT.x * TILE_WIDTH
   const threshold = VAULT.y * TILE_HEIGHT
-  g.fillStyle(0xafff65).fillRect(vaultX + 1, threshold - 1, TILE_WIDTH - 2, 5)
+  g.fillStyle(0xafff65).fillRect(vaultX + 1, threshold - WALL_STROKE / 2, TILE_WIDTH - 2, WALL_STROKE)
 
   const cx = vaultX + Math.round(TILE_WIDTH / 2)
   const cy = threshold + Math.round(TILE_HEIGHT * 0.54)
@@ -262,7 +265,7 @@ export function createBoard(parent: HTMLDivElement, onReady?: () => void, onFram
         drawMaze(this)
         const dots = this.add.graphics()
         const pellets = this.add.graphics()
-        const bankFlash = this.add.rectangle((VAULT.x + 0.5) * TILE_WIDTH, VAULT.y * TILE_HEIGHT, TILE_WIDTH - 2, 7, 0xeaffd9)
+        const bankFlash = this.add.rectangle((VAULT.x + 0.5) * TILE_WIDTH, VAULT.y * TILE_HEIGHT, TILE_WIDTH - 2, WALL_STROKE, 0xeaffd9)
           .setVisible(false)
         const ghosts = (['tracer', 'snare', 'relay', 'warden'] as const).map(id => actor(this, id))
         const player = actor(this, 'normal_left', PLAYER_SIZE, false)
