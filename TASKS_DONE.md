@@ -59,3 +59,4 @@
 - [x] Read the escrow ERC-20 balance instead of Arc native gas balance, corrected all stake balance checks, and requested MetaMask account permission before a prize signature. All 62 tests, lint, and production build passed.
 - [x] Replaced browser-specific invite URLs with portable match-code sharing and clarified MetaMask account mismatch recovery and fixed-stake escrow status. All 62 tests, lint, and production build passed.
 - [x] Revoked Wallet Rush's MetaMask account permission on deliberate sign-out, forcing account approval on the next login when the injected wallet supports EIP-2255. Wallet tests, type checks, lint, and production build passed.
+- [x] Allowed Render's trusted runtime hostname in Vite preview without widening host access. Production build accepted the Render hostname and rejected an unrelated host.

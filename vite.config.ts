@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), ['WALLET_RUSH_', 'WORLD_', 'ARC_', 'ARKIV_', 'VITE_ARKIV_', 'PRIZE_'])
   for (const [name, value] of Object.entries(env)) process.env[name] ??= value
   const configuredOrigin = process.env.WALLET_RUSH_ORIGIN
-  const allowedHosts = configuredOrigin ? [new URL(configuredOrigin).hostname] : []
+  const hosts = [configuredOrigin && new URL(configuredOrigin).hostname, process.env.RENDER_EXTERNAL_HOSTNAME]
+    .filter((host): host is string => Boolean(host))
+  const allowedHosts = [...new Set(hosts)]
   return { plugins: [react(), competition()], server: { allowedHosts }, preview: { allowedHosts } }
 })
