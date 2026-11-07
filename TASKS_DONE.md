@@ -58,3 +58,4 @@
 - [x] Corrected six-decimal Arc USDC display, made failed escrow openings safely retryable without freeing uncertain onchain matches, and extended immutable Arkiv replay retention to one year. Targeted Arc and prize tests, full 61-test suite, lint, type checks, and production build passed.
 - [x] Read the escrow ERC-20 balance instead of Arc native gas balance, corrected all stake balance checks, and requested MetaMask account permission before a prize signature. All 62 tests, lint, and production build passed.
 - [x] Replaced browser-specific invite URLs with portable match-code sharing and clarified MetaMask account mismatch recovery and fixed-stake escrow status. All 62 tests, lint, and production build passed.
+- [x] Revoked Wallet Rush's MetaMask account permission on deliberate sign-out, forcing account approval on the next login when the injected wallet supports EIP-2255. Wallet tests, type checks, lint, and production build passed.

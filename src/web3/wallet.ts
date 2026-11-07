@@ -33,6 +33,16 @@ export function injectedWallet() {
   return { provider, client: createWalletClient({ chain: ARC_TESTNET, transport: custom(provider) }) }
 }
 
+/** Remove this site's account permission so the next login asks the user again. */
+export async function revokeWalletAccess() {
+  try {
+    const { provider } = injectedWallet()
+    await provider.request({ method: 'wallet_revokePermissions', params: [{ eth_accounts: {} }] })
+  } catch {
+    // Some injected wallets do not implement EIP-2255 revocation. Local sign-out still succeeds.
+  }
+}
+
 /** Read the six-decimal ERC-20 balance that the escrow actually deposits. */
 export function readTestUsdcBalance(account: Address) {
   return arc.readContract({ address: ARC_USDC, abi: erc20Abi, functionName: 'balanceOf', args: [account] })

@@ -2,7 +2,7 @@ import { type CSSProperties, lazy, Suspense, useCallback, useEffect, useRef, use
 import { formatUnits, type Address } from 'viem'
 import { ARC_TESTNET, USDC_DECIMALS } from '../arc/chain.ts'
 import { useArcBalance } from '../web3/useArcBalance'
-import { injectedWallet, PRIZE_SESSION_KEY, selectedWalletAccount, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from '../web3/wallet'
+import { injectedWallet, PRIZE_SESSION_KEY, revokeWalletAccess, selectedWalletAccount, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from '../web3/wallet'
 import { BOARD_ASPECT, createArcade, steeringKey, type Hud } from './arcade'
 import { ArenaFooter, endings, initialHud, Scoreboard, TouchControls } from './CabinetHud'
 import WalletEntry from './WalletEntry'
@@ -29,7 +29,8 @@ export default function App() {
   const [walletActions, setWalletActions] = useState<HTMLDivElement | null>(null)
   const balance = useArcBalance(mode === 'multiplayer' ? account : undefined)
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback((revoke = false) => {
+    if (revoke) void revokeWalletAccess()
     localStorage.removeItem(WALLET_SIGN_IN_KEY)
     sessionStorage.removeItem(WALLET_ACCOUNT_KEY)
     sessionStorage.removeItem(PRIZE_SESSION_KEY)
@@ -139,7 +140,7 @@ export default function App() {
             <button type="button" onClick={() => {
               history.replaceState(null, '', '/')
               setMode('practice')
-              signOut()
+              signOut(true)
             }}>Sign out</button>
             {multiplayer && <>
               <a href={`${ARC_TESTNET.blockExplorers.default.url}/address/${account}`} target="_blank" rel="noreferrer">View on Arc Explorer</a>

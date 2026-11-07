@@ -2,7 +2,7 @@ import { encodeAbiParameters, encodeEventTopics } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ARC_TESTNET, ENTRY_AMOUNT, ESCROW_ABI, matchKeyFor } from '../arc/chain.ts'
-import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, readTestUsdcBalance, refundUSDC, switchToArc, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from './wallet.ts'
+import { arc, checkedWallet, claimUSDC, depositUSDC, injectedWallet, readTestUsdcBalance, refundUSDC, revokeWalletAccess, switchToArc, WALLET_ACCOUNT_KEY, WALLET_SIGN_IN_KEY } from './wallet.ts'
 
 function stubWallet(request: (args: { method: string }) => Promise<unknown>, preferred?: string) {
   const browser = Object.assign(new EventTarget(), {
@@ -49,6 +49,13 @@ it('rejects a wallet action after the app signs out even when MetaMask still gra
   await expect(checkedWallet(address)).resolves.toBeDefined()
   vi.spyOn(browser.localStorage, 'getItem').mockReturnValue(null)
   await expect(checkedWallet(address)).rejects.toThrow('Sign in to Wallet Rush first')
+})
+
+it('revokes this site account permission on a deliberate sign-out when MetaMask supports it', async () => {
+  const request = vi.fn(async () => null)
+  stubWallet(request)
+  await revokeWalletAccess()
+  expect(request).toHaveBeenCalledWith({ method: 'wallet_revokePermissions', params: [{ eth_accounts: {} }] })
 })
 
 it('uses the announced MetaMask provider when another wallet owns window.ethereum', async () => {
